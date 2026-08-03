@@ -15,6 +15,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MasterModule } from './modules/master/master.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     FinanceModule,
     WebhooksModule,
     DashboardModule,
+    MasterModule,
   ],
   providers: [
     // Popula o contexto de tenant (RLS) em todo request autenticado.

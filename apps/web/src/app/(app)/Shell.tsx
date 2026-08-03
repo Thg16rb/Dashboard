@@ -12,16 +12,40 @@ const NAV: Array<[string, string, string]> = [
   ['/usuarios', 'Usuários', '⊙'],
 ];
 
+function readRole(): string {
+  try {
+    const t = localStorage.getItem('token');
+    if (!t || t === 'demo') return 'demo';
+    return JSON.parse(atob(t.split('.')[1])).role ?? '';
+  } catch { return ''; }
+}
+
 export default function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [clock, setClock] = useState('');
+  const [isMaster, setIsMaster] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem('token')) {
       router.replace('/login');
+      return;
     }
-  }, [router]);
+    const role = readRole();
+    // Mostra "Master" para ADMIN_GERAL e também no modo demo (para visualização).
+    setIsMaster(role === 'ADMIN_GERAL' || role === 'demo');
+    setImpersonating(!!localStorage.getItem('masterToken'));
+  }, [router, pathname]);
+
+  function exitImpersonation() {
+    const mt = localStorage.getItem('masterToken');
+    if (mt) {
+      localStorage.setItem('token', mt);
+      localStorage.removeItem('masterToken');
+      router.replace('/master');
+    }
+  }
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString('pt-BR', { hour12: false }));
@@ -51,6 +75,12 @@ export default function Shell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {isMaster && (
+            <Link href="/master" className={pathname === '/master' ? 'nav on master' : 'nav master'}>
+              <span className="ic">★</span>
+              Master
+            </Link>
+          )}
         </nav>
         <button className="logout" onClick={logout}>
           ⏻ Sair
@@ -58,9 +88,15 @@ export default function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="main">
+        {impersonating && (
+          <div className="imp-bar">
+            <span>⚠ Você está acessando uma empresa como Administrador Geral (modo suporte).</span>
+            <button onClick={exitImpersonation}>← Voltar ao Painel Master</button>
+          </div>
+        )}
         <header className="top">
           <span className="crumb">
-            {NAV.find(([h]) => h === pathname)?.[1] ?? ''}
+            {pathname === '/master' ? 'Painel Master' : NAV.find(([h]) => h === pathname)?.[1] ?? ''}
           </span>
           <div className="top-r">
             <span className="tenant">◧ Minha Empresa</span>
@@ -144,11 +180,22 @@ export default function Shell({ children }: { children: ReactNode }) {
           border-color: #3a2a2a;
           color: #ff6a5a;
         }
+        :global(.side .nav.master) { margin-top: 8px; border-top: 1px solid #1c211d; padding-top: 14px; color: #b6ff3d; }
         .main {
           display: flex;
           flex-direction: column;
           min-width: 0;
         }
+        .imp-bar {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          background: #2a2410; border-bottom: 1px solid #4a3c14; color: #e0a83d;
+          padding: 9px 22px; font-size: 12px;
+        }
+        .imp-bar button {
+          background: none; border: 1px solid #4a3c14; color: #e0a83d;
+          padding: 5px 12px; border-radius: 2px; font-family: inherit; font-size: 11.5px; cursor: pointer;
+        }
+        .imp-bar button:hover { border-color: #e0a83d; }
         .top {
           display: flex;
           justify-content: space-between;
