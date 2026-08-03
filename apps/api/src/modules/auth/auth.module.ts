@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 
 /**
- * UauthModule — esqueleto (Passo 1).
+ * AuthModule — esqueleto (Passo 1).
  * Camadas domain/application/infra serão preenchidas nos próximos passos do MVP.
  */
 @Module({})
-export class UauthModule {}
+export class AuthModule {}
