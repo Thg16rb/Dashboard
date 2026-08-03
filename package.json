@@ -11,5 +11,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "fastify": "4.29.1"
+    }
   }
 }
