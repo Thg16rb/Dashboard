@@ -38,3 +38,56 @@ const BASE: Record<string, { kpis: Record<string, number>; variations: Record<st
 export function demoData(period: string): DemoResult {
   return BASE[period] ?? BASE['30d'];
 }
+
+export interface SeriesPoint { label: string; receita: number; investido: number; }
+
+/** Série temporal para o gráfico de evolução (determinística por período). */
+export function demoSeries(period: string): SeriesPoint[] {
+  const days = period === 'today' || period === 'yesterday' ? 24
+    : period === '7d' ? 7 : period === '90d' ? 12 : period === '365d' ? 12 : 30;
+  const isHours = period === 'today' || period === 'yesterday';
+  const base = (BASE[period] ?? BASE['30d']).kpis;
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < days; i++) {
+    const wave = 0.72 + 0.28 * Math.sin((i / days) * Math.PI * 2 + 0.6) + (i % 3) * 0.03;
+    const receita = Math.round((base.receitaBruta / days) * wave);
+    const investido = Math.round((base.investido / days) * (0.8 + 0.2 * wave));
+    out.push({
+      label: isHours ? `${String(i).padStart(2, '0')}h` : `${i + 1}`,
+      receita,
+      investido,
+    });
+  }
+  return out;
+}
+
+export interface CampaignRow {
+  plataforma: string;
+  conta: string;
+  investido: number;
+  receita: number;
+  roas: number;
+  conversoes: number;
+}
+
+export function demoCampaigns(period: string): CampaignRow[] {
+  const m = (BASE[period] ?? BASE['30d']).kpis;
+  const split = [
+    { plataforma: 'Meta Ads', conta: 'BM Principal', w: 0.46 },
+    { plataforma: 'Meta Ads', conta: 'Cliente Studio X', w: 0.19 },
+    { plataforma: 'Google Ads', conta: 'Search Brasil', w: 0.23 },
+    { plataforma: 'TikTok Ads', conta: 'Awareness', w: 0.12 },
+  ];
+  return split.map((s) => {
+    const investido = Math.round(m.investido * s.w);
+    const receita = Math.round(m.receitaBruta * s.w * (0.9 + s.w));
+    return {
+      plataforma: s.plataforma,
+      conta: s.conta,
+      investido,
+      receita,
+      roas: investido ? +(receita / investido).toFixed(2) : 0,
+      conversoes: Math.round(m.conversoes * s.w),
+    };
+  });
+}
