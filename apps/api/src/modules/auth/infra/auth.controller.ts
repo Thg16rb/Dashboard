@@ -11,7 +11,7 @@ import {
 import { FastifyRequest } from 'fastify';
 import { AuthService } from '../application/auth.service';
 import { SessionsService } from '../application/sessions.service';
-import { LoginDto, Verify2faDto, RefreshDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, Verify2faDto, RefreshDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAccessPayload } from '../domain/auth.types';
@@ -30,6 +30,11 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly sessions: SessionsService,
   ) {}
+
+  @Post('signup')
+  signup(@Body() dto: SignupDto, @Req() req: FastifyRequest) {
+    return this.auth.signup(dto.companyName, dto.email, dto.password, meta(req));
+  }
 
   @Post('login')
   login(@Body() dto: LoginDto, @Req() req: FastifyRequest) {

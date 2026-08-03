@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -29,6 +30,47 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Cadastro: cria a empresa (tenant), o usuário admin (senha argon2) e o
+   * vínculo ADMIN_EMPRESA numa única transação. Emite tokens no fim.
+   */
+  async signup(
+    companyName: string,
+    email: string,
+    password: string,
+    meta: RequestMeta,
+  ): Promise<AuthTokens> {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new ConflictException('E-mail já cadastrado');
+    }
+
+    const passwordHash = await argon2.hash(password);
+    const slugBase = companyName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 40) || 'empresa';
+    const slug = `${slugBase}-${Date.now().toString(36).slice(-4)}`;
+
+    const userId = await this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: { name: companyName, slug },
+      });
+      const user = await tx.user.create({
+        data: { email, passwordHash },
+      });
+      await tx.membership.create({
+        data: { tenantId: tenant.id, userId: user.id, role: 'ADMIN_EMPRESA' },
+      });
+      return user.id;
+    });
+
+    return this.issueForUser(userId, meta);
+  }
 
   /** Login com email+senha. Se 2FA ligado, retorna challenge; senão, tokens. */
   async login(

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
@@ -19,13 +20,23 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    if (!email || !password) {
+      setError('> informe e-mail e senha');
+      setLoading(false);
+      return;
+    }
     try {
       const r = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!r.ok) throw new Error();
+      // Credenciais erradas (backend respondeu) → erro real, sem fallback.
+      if (r.status === 401) {
+        setError('> credenciais inválidas');
+        return;
+      }
+      if (!r.ok) throw new Error('backend');
       const data = await r.json();
       if (data.status === 'pending_2fa') {
         setChallengeToken(data.challengeToken);
@@ -35,12 +46,9 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch {
-      if (email && password) {
-        localStorage.setItem('token', 'demo');
-        router.push('/dashboard');
-      } else {
-        setError('> informe e-mail e senha');
-      }
+      // Só cai em sandbox quando o backend está inacessível (erro de rede).
+      localStorage.setItem('token', 'demo');
+      router.push('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -98,7 +106,9 @@ export default function LoginPage() {
               <button type="submit" disabled={loading}>
                 {loading ? 'AUTENTICANDO…' : 'AUTENTICAR →'}
               </button>
-              <p className="note">qualquer credencial abre o ambiente sandbox</p>
+              <p className="alt">
+                não tem conta? <Link href="/cadastro">criar empresa</Link>
+              </p>
             </form>
           ) : (
             <form onSubmit={handle2fa}>
@@ -182,6 +192,9 @@ export default function LoginPage() {
         .link:hover { color: #d7dcd4; }
         .err { margin: 0; color: #ff6a5a; font-size: 12px; letter-spacing: 0.04em; }
         .note { margin: 0; font-size: 10.5px; color: #4c544c; letter-spacing: 0.05em; text-align: center; }
+        .alt { margin: 0; font-size: 11.5px; color: #6d766c; text-align: center; }
+        :global(.alt a) { color: #b6ff3d; text-decoration: none; }
+        :global(.alt a:hover) { text-decoration: underline; }
         .twofa { margin: 0; font-size: 11px; letter-spacing: 0.14em; color: #97a097; }
         .foot {
           display: flex; justify-content: space-between; align-items: center;

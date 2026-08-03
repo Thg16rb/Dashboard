@@ -15,6 +15,7 @@ async function bootstrap() {
   );
 
   await app.register(helmet);
+  app.enableCors({ origin: true, credentials: true });
 
   app.useGlobalPipes(
     new ValidationPipe({
