@@ -28,7 +28,11 @@ async function bootstrap() {
   const port = Number(process.env.API_PORT ?? 3333);
   await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`API pronta em http://localhost:${port}`);
+  console.log(`API pronta em http://0.0.0.0:${port}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('FALHA NO BOOT DA API:', err);
+  process.exit(1);
+});

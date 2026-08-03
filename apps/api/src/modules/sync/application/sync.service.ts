@@ -17,16 +17,24 @@ export class SyncService implements OnModuleInit {
   ) {}
 
   /** Agenda o fanout repetível a cada 15 minutos (BLUEPRINT seção 5.2). */
-  async onModuleInit(): Promise<void> {
-    await this.scheduleQ.add(
-      JOB_FANOUT,
-      {},
-      {
-        repeat: { every: 15 * 60 * 1000 },
-        jobId: 'fanout-15m', // um único job repetível
-        removeOnComplete: true,
-      },
-    );
+  onModuleInit(): void {
+    // Agenda o fanout SEM bloquear o boot da aplicação. Se o Redis estiver
+    // indisponível/lento, a API sobe mesmo assim (o agendamento tenta em
+    // background e não derruba o listen()).
+    this.scheduleQ
+      .add(
+        JOB_FANOUT,
+        {},
+        {
+          repeat: { every: 15 * 60 * 1000 },
+          jobId: 'fanout-15m',
+          removeOnComplete: true,
+        },
+      )
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('Falha ao agendar fanout (Redis?):', err?.message ?? err);
+      });
   }
 
   /** Enfileira o fetch de uma integração. */
