@@ -34,6 +34,17 @@ enum SyncStatus {
   FAILED
 }
 
+enum FinanceRuleKind {
+  TAX
+  FEE
+  OPCOST
+}
+
+enum FinanceCalcType {
+  PERCENT
+  FIXED
+}
+
 model Tenant {
   id        String    @id @default(uuid()) @db.Uuid
   name      String
@@ -185,4 +196,32 @@ model SyncRun {
 
   @@index([tenantId, integrationId, startedAt])
   @@map("sync_runs")
+}
+
+model FinanceConfig {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @unique @map("tenant_id") @db.Uuid
+  currency  String        @default("BRL")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  rules FinanceRule[]
+
+  @@map("finance_configs")
+}
+
+model FinanceRule {
+  id              String          @id @default(uuid()) @db.Uuid
+  financeConfigId String          @map("finance_config_id") @db.Uuid
+  kind            FinanceRuleKind
+  name            String
+  calcType        FinanceCalcType @map("calc_type")
+  value           Decimal         @db.Decimal(9, 4)
+  appliesTo       String?         @map("applies_to")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  config FinanceConfig @relation(fields: [financeConfigId], references: [id])
+
+  @@index([financeConfigId, isActive])
+  @@map("finance_rules")
 }
