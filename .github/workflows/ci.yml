@@ -28,3 +28,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Test (unit + segurança)
+        run: pnpm --filter @dashboard/api test
