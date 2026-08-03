@@ -5,36 +5,37 @@ import { demoData, demoSeries, demoCampaigns } from './demo-data';
 
 type Kpis = Record<string, number>;
 interface DashboardResult { kpis: Kpis; variations: Record<string, number>; }
+type Fmt = 'money' | 'ratio' | 'pct' | 'int';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+const STORAGE_KEY = 'dash.kpis.v1';
 const PERIODS: Array<[string, string]> = [
   ['today', 'Hoje'], ['yesterday', 'Ontem'], ['7d', '7 dias'],
   ['30d', '30 dias'], ['90d', '90 dias'], ['365d', '365 dias'],
 ];
 
-// Cards de destaque no topo
-const HERO: Array<[string, string, 'money' | 'ratio' | 'pct' | 'int']> = [
-  ['investido', 'Investimento', 'money'],
-  ['receitaBruta', 'Receita', 'money'],
-  ['lucroLiquido', 'Lucro Líquido', 'money'],
-  ['roas', 'ROAS', 'ratio'],
-  ['roi', 'ROI', 'ratio'],
-  ['conversoes', 'Conversões', 'int'],
-];
-// Métricas secundárias
-const SECONDARY: Array<[string, string, 'money' | 'ratio' | 'pct' | 'int']> = [
-  ['receitaLiquida', 'Receita Líq.', 'money'],
-  ['margem', 'Margem', 'pct'],
-  ['ticketMedio', 'Ticket Médio', 'money'],
-  ['cpa', 'CPA', 'money'],
-  ['cpl', 'CPL', 'money'],
-  ['cpm', 'CPM', 'money'],
-  ['cac', 'CAC', 'money'],
-  ['ctr', 'CTR', 'pct'],
-];
+// Catálogo completo de KPIs disponíveis — o cliente escolhe quais mostrar.
+const ALL_KPIS: Record<string, { label: string; fmt: Fmt }> = {
+  investido:      { label: 'Investimento',  fmt: 'money' },
+  receitaBruta:   { label: 'Receita Bruta', fmt: 'money' },
+  receitaLiquida: { label: 'Receita Líquida', fmt: 'money' },
+  lucroLiquido:   { label: 'Lucro Líquido', fmt: 'money' },
+  roas:           { label: 'ROAS',          fmt: 'ratio' },
+  roi:            { label: 'ROI',           fmt: 'ratio' },
+  margem:         { label: 'Margem',        fmt: 'pct' },
+  ticketMedio:    { label: 'Ticket Médio',  fmt: 'money' },
+  conversoes:     { label: 'Conversões',    fmt: 'int' },
+  cpa:            { label: 'CPA',           fmt: 'money' },
+  cpl:            { label: 'CPL',           fmt: 'money' },
+  cpm:            { label: 'CPM',           fmt: 'money' },
+  cac:            { label: 'CAC',           fmt: 'money' },
+  ctr:            { label: 'CTR',           fmt: 'pct' },
+};
+const KPI_ORDER = Object.keys(ALL_KPIS);
+const DEFAULT_SELECTED = ['investido', 'receitaBruta', 'lucroLiquido', 'roas', 'roi', 'conversoes'];
 const LOWER_IS_BETTER = new Set(['cpa', 'cpl', 'cpm', 'cac']);
 
-function fmt(v: number, kind: 'money' | 'ratio' | 'pct' | 'int'): string {
+function fmt(v: number, kind: Fmt): string {
   switch (kind) {
     case 'money': return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
     case 'ratio': return `${v.toFixed(2)}×`;
@@ -49,7 +50,20 @@ export default function DashboardPage() {
   const [live, setLive] = useState(false);
   const [showCal, setShowCal] = useState(false);
   const [range, setRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
+  const [editing, setEditing] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
+
+  // carrega a preferência salva do cliente
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) setSelected(arr);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -71,18 +85,27 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  function toggleKpi(k: string) {
+    setSelected((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  }
+  function saveSelection() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+    setEditing(false);
+  }
+
   const kpis = data?.kpis ?? {};
   const variations = data?.variations ?? {};
   const series = useMemo(() => demoSeries(period), [period]);
   const campaigns = useMemo(() => demoCampaigns(period), [period]);
 
-  const periodLabel = range.from && range.to
-    ? `${range.from} → ${range.to}`
+  // cards = KPIs selecionados; métricas = os demais
+  const cards = KPI_ORDER.filter((k) => selected.includes(k));
+  const rest = KPI_ORDER.filter((k) => !selected.includes(k));
+  const periodLabel = range.from && range.to ? `${range.from} → ${range.to}`
     : PERIODS.find(([id]) => id === period)?.[1] ?? '';
 
   return (
     <div>
-      {/* Barra de controles */}
       <div className="controls">
         <div className="periods">
           {PERIODS.map(([id, lbl]) => (
@@ -101,28 +124,51 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        <button className={`edit-btn ${editing ? 'on' : ''}`} onClick={() => setEditing((e) => !e)}>
+          {editing ? '✓ Concluir' : '✎ Personalizar'}
+        </button>
         <span className={live ? 'feed live' : 'feed demo'}>
           <i /> {live ? 'LIVE' : 'SANDBOX'}
         </span>
       </div>
 
-      {/* Cards hero */}
+      {editing && (
+        <div className="editor">
+          <div className="editor-head">
+            <span>ESCOLHA OS INDICADORES DO SEU PAINEL</span>
+            <button className="save" onClick={saveSelection}>Salvar preferências</button>
+          </div>
+          <div className="editor-grid">
+            {KPI_ORDER.map((k) => {
+              const on = selected.includes(k);
+              return (
+                <button key={k} className={`chip ${on ? 'on' : ''}`} onClick={() => toggleKpi(k)}>
+                  <span className="check">{on ? '☑' : '☐'}</span> {ALL_KPIS[k].label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="editor-note">Sua seleção fica salva neste dispositivo — cada usuário monta o painel do seu jeito.</p>
+        </div>
+      )}
+
       <div className="hero">
-        {HERO.map(([k, label, kind]) => {
+        {cards.length === 0 && <div className="empty">Nenhum indicador selecionado. Clique em “Personalizar”.</div>}
+        {cards.map((k) => {
+          const meta = ALL_KPIS[k];
           const v = kpis[k] ?? 0;
           const varr = variations[k] ?? 0;
           const good = LOWER_IS_BETTER.has(k) ? varr < 0 : varr >= 0;
           return (
             <div className="card" key={k}>
-              <span className="c-label">{label}</span>
-              <span className="c-value">{fmt(v, kind)}</span>
+              <span className="c-label">{meta.label}</span>
+              <span className="c-value">{fmt(v, meta.fmt)}</span>
               <span className={`c-var ${good ? 'up' : 'down'}`}>{varr >= 0 ? '▲' : '▼'} {Math.abs(varr * 100).toFixed(1)}%</span>
             </div>
           );
         })}
       </div>
 
-      {/* Gráfico + secundárias */}
       <div className="mid">
         <div className="chart-box">
           <div className="chart-head">
@@ -132,19 +178,19 @@ export default function DashboardPage() {
           <Chart series={series} />
         </div>
         <div className="secondary">
-          <span className="sec-title">MÉTRICAS</span>
+          <span className="sec-title">DEMAIS MÉTRICAS</span>
           <div className="sec-grid">
-            {SECONDARY.map(([k, label, kind]) => (
+            {rest.length === 0 && <span className="s-empty">Todos os indicadores estão nos cards.</span>}
+            {rest.map((k) => (
               <div className="sec-item" key={k}>
-                <span className="s-label">{label}</span>
-                <span className="s-value">{fmt(kpis[k] ?? 0, kind)}</span>
+                <span className="s-label">{ALL_KPIS[k].label}</span>
+                <span className="s-value">{fmt(kpis[k] ?? 0, ALL_KPIS[k].fmt)}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Tabela de campanhas */}
       <div className="table-box">
         <span className="tb-title">DESEMPENHO POR CONTA</span>
         <table>
@@ -171,25 +217,37 @@ export default function DashboardPage() {
         .periods button:hover { border-color: #3a4239; color: #d7dcd4; }
         .periods button.on { background: #b6ff3d; border-color: #b6ff3d; color: #0b0d0c; font-weight: 700; }
         .cal-wrap { position: relative; }
-        .cal-btn { background: #0e100f; border: 1px solid #232823; color: #c3ccd6; font-size: 11.5px; padding: 6px 13px; cursor: pointer; font-family: inherit; border-radius: 2px; }
-        .cal-btn:hover { border-color: #3a4239; }
-        .cal-btn.on { border-color: #b6ff3d; color: #b6ff3d; }
+        .cal-btn, .edit-btn { background: #0e100f; border: 1px solid #232823; color: #c3ccd6; font-size: 11.5px; padding: 6px 13px; cursor: pointer; font-family: inherit; border-radius: 2px; }
+        .cal-btn:hover, .edit-btn:hover { border-color: #3a4239; }
+        .cal-btn.on, .edit-btn.on { border-color: #b6ff3d; color: #b6ff3d; }
         .cal-pop { position: absolute; top: 34px; left: 0; z-index: 40; background: #0e100f; border: 1px solid #232823; border-radius: 4px; padding: 14px; display: flex; flex-direction: column; gap: 10px; width: 200px; }
-        .cal-pop label { font-size: 10.5px; color: #8a938a; display: flex; flex-direction: column; gap: 5px; letter-spacing: 0.06em; }
+        .cal-pop label { font-size: 10.5px; color: #8a938a; display: flex; flex-direction: column; gap: 5px; }
         .cal-pop input { background: #070807; border: 1px solid #232823; color: #eef3e8; padding: 7px 9px; border-radius: 2px; font-family: inherit; font-size: 12px; color-scheme: dark; }
         .cal-apply { background: #b6ff3d; color: #0b0d0c; border: none; padding: 8px; border-radius: 2px; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
         .cal-apply:disabled { opacity: 0.4; cursor: default; }
-        .feed { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: 0.06em; }
+        .feed { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 11px; }
         .feed i { width: 7px; height: 7px; border-radius: 50%; }
         .feed.live { color: #b6ff3d; } .feed.live i { background: #b6ff3d; box-shadow: 0 0 8px #b6ff3d88; }
         .feed.demo { color: #e0a83d; } .feed.demo i { background: #e0a83d; box-shadow: 0 0 8px #e0a83d66; }
 
+        .editor { background: #0e100f; border: 1px solid #23301a; border-radius: 6px; padding: 16px 18px; margin-bottom: 16px; }
+        .editor-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .editor-head span { font-size: 10.5px; letter-spacing: 0.14em; color: #8a938a; }
+        .save { background: #b6ff3d; color: #0b0d0c; border: none; padding: 7px 14px; border-radius: 2px; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+        .editor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+        .chip { display: flex; align-items: center; gap: 8px; background: #070807; border: 1px solid #232823; color: #97a097; padding: 9px 12px; border-radius: 3px; font-family: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
+        .chip:hover { border-color: #3a4239; }
+        .chip.on { border-color: #23301a; background: #101a0c; color: #eef3e8; }
+        .chip .check { color: #b6ff3d; font-size: 13px; }
+        .editor-note { font-size: 11px; color: #6d766c; margin: 12px 0 0; }
+
         .hero { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
-        @media (max-width: 1000px) { .hero { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 560px) { .hero { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1100px) { .hero { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 720px) { .hero { grid-template-columns: repeat(2, 1fr); } }
+        .empty { grid-column: 1 / -1; color: #6d766c; font-size: 12.5px; padding: 18px; border: 1px dashed #232823; border-radius: 6px; text-align: center; }
         .card { background: linear-gradient(180deg, #10130f, #0d0f0d); border: 1px solid #1c211d; border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
         .c-label { font-size: 10.5px; letter-spacing: 0.1em; color: #7f887e; text-transform: uppercase; }
-        .c-value { font-size: 22px; color: #eef3e8; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+        .c-value { font-size: 22px; color: #eef3e8; font-weight: 600; font-variant-numeric: tabular-nums; }
         .c-var { font-size: 11.5px; font-variant-numeric: tabular-nums; }
         .c-var.up { color: #b6ff3d; } .c-var.down { color: #ff6a5a; }
 
@@ -203,6 +261,7 @@ export default function DashboardPage() {
         .legend .li.rec { background: #b6ff3d; } .legend .li.inv { background: #4a7bd1; }
         .sec-title, .tb-title { font-size: 10.5px; letter-spacing: 0.16em; color: #6d766c; display: block; margin-bottom: 14px; }
         .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+        .s-empty { grid-column: 1/-1; color: #6d766c; font-size: 12px; }
         .sec-item { display: flex; flex-direction: column; gap: 3px; }
         .s-label { font-size: 10.5px; color: #7f887e; }
         .s-value { font-size: 16px; color: #e8ede4; font-variant-numeric: tabular-nums; }
@@ -218,7 +277,6 @@ export default function DashboardPage() {
   );
 }
 
-/** Gráfico de área simples em SVG (receita vs investimento). */
 function Chart({ series }: { series: Array<{ label: string; receita: number; investido: number }> }) {
   const W = 640, H = 180, P = 8;
   const max = Math.max(...series.map((s) => Math.max(s.receita, s.investido)), 1);
@@ -227,7 +285,6 @@ function Chart({ series }: { series: Array<{ label: string; receita: number; inv
   const path = (key: 'receita' | 'investido') =>
     series.map((s, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(s[key]).toFixed(1)}`).join(' ');
   const area = `${path('receita')} L ${x(series.length - 1).toFixed(1)} ${H - P} L ${x(0).toFixed(1)} ${H - P} Z`;
-
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="180" preserveAspectRatio="none" style={{ display: 'block' }}>
       <defs>
