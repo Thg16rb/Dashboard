@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './infra/prisma/prisma.module';
+import { CryptoModule } from './infra/crypto/crypto.module';
 import { HealthModule } from './infra/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -14,6 +15,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    CryptoModule,
     HealthModule,
     // Módulos de domínio (esqueleto — lógica nos próximos passos)
     AuthModule,

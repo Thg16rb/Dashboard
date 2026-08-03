@@ -13,7 +13,7 @@ Next.js + React + TypeScript · NestJS + Fastify · PostgreSQL · Redis · BullM
 O projeto é construído passo a passo, cada passo abrindo um PR para revisão:
 
 - [x] **Passo 1 — Scaffolding do monorepo:** estrutura `apps/api` (NestJS+Fastify) + `apps/web` (Next.js), `docker-compose` (Postgres+Redis), `schema.prisma` inicial (tenants, users, memberships, integrations, integration_credentials, sync_runs), config de RLS, CI básico (lint+build). ✅
-- [ ] **Passo 2 — Auth:** JWT + Refresh rotativo + 2FA TOTP, sessões/dispositivos, login_history.
+- [x] **Passo 2 — Auth:** JWT + Refresh rotativo + 2FA TOTP, sessões/dispositivos, login_history. ✅
 - [ ] **Passo 3 — Multi-tenancy:** interceptor `SET app.tenant_id` + políticas RLS + RBAC (7 papéis, guards).
 - [ ] **Passo 4 — Primeira integração (Adapter+Registry):** contrato `IntegrationConnector` + connector Meta Ads + Stripe.
 - [ ] **Passo 5 — Pipeline de sync:** BullMQ scheduler (15 min) + fanout + "Atualizar Agora" + upsert idempotente.
@@ -63,5 +63,9 @@ pnpm dev
 Health check da API: `GET http://localhost:3333/health`.
 
 ## Status
-Fase: **MVP** (~45% do escopo total). Início: 2026-08-03. **Passo 1 concluído.**
-Próximo: **Passo 2 — Auth (JWT + Refresh + 2FA).**
+Fase: **MVP** (~45% do escopo total). Início: 2026-08-03. **Passos 1 e 2 concluídos.**
+Próximo: **Passo 3 — Multi-tenancy (interceptor SET app.tenant_id + RLS + RBAC).**
+
+### Endpoints de auth (Passo 2)
+`POST /auth/login` · `POST /auth/2fa` · `POST /auth/refresh` · `POST /auth/logout` ·
+`GET /auth/sessions` · `DELETE /auth/sessions/:id` · `POST /auth/sessions/revoke-others`
