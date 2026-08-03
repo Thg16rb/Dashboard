@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { FinanceController } from './infra/finance.controller';
+import { FinanceService } from './application/finance.service';
 
 /**
- * FinanceModule — esqueleto (Passo 1).
- * Camadas domain/application/infra serão preenchidas nos próximos passos do MVP.
+ * FinanceModule — regras parametrizáveis + cálculo puro (BLUEPRINT seção 7).
  */
-@Module({})
+@Module({
+  imports: [AuthModule],
+  controllers: [FinanceController],
+  providers: [FinanceService],
+  exports: [FinanceService],
+})
 export class FinanceModule {}
