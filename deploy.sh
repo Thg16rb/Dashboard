@@ -20,11 +20,12 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs git
 sudo npm i -g pnpm pm2
 
-echo "==> [2/5] Clonando o repositório (branch demo)"
+echo "==> [2/5] Clonando o repositório (branch demo, via SSH)"
 if [ ! -d "$HOME/Dashboard" ]; then
-  git clone https://github.com/Thg16rb/Dashboard.git "$HOME/Dashboard"
+  git clone git@github.com:Thg16rb/Dashboard.git "$HOME/Dashboard"
 fi
 cd "$HOME/Dashboard"
+git remote set-url origin git@github.com:Thg16rb/Dashboard.git
 git fetch origin
 git checkout demo/dashboard-preview
 git pull origin demo/dashboard-preview || true
