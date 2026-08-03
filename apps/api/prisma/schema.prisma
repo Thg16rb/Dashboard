@@ -1,0 +1,188 @@
+// TrafficIntel / Dashboard — schema inicial (Passo 1 do MVP)
+// Modelos conforme BLUEPRINT.md seção 2. Auth/negócio nos próximos passos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  ADMIN_GERAL
+  ADMIN_EMPRESA
+  FINANCEIRO
+  GESTOR
+  ANALISTA
+  OPERADOR
+  VISUALIZADOR
+}
+
+enum IntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+enum SyncStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model Tenant {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique
+  status    String    @default("active")
+  plan      String    @default("free")
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  memberships   Membership[]
+  integrations  Integration[]
+  syncRuns      SyncRun[]
+  sessions      Session[]
+  loginHistory  LoginHistory[]
+
+  @@map("tenants")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  totpSecretEnc Bytes?    @map("totp_secret_enc")
+  is2faEnabled  Boolean   @default(false) @map("is_2fa_enabled")
+  lastLoginAt   DateTime? @map("last_login_at")
+  status        String    @default("active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  memberships  Membership[]
+  sessions     Session[]
+  loginHistory LoginHistory[]
+
+  @@map("users")
+}
+
+model Membership {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  role      MembershipRole
+  invitedBy String?        @map("invited_by") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, userId])
+  @@map("memberships")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash")
+  deviceFingerprint String?  @map("device_fingerprint")
+  ip               String?
+  userAgent        String?   @map("user_agent")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tenantId  String?  @map("tenant_id") @db.Uuid
+  ip        String?
+  userAgent String?  @map("user_agent")
+  success   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("login_history")
+}
+
+model IntegrationProvider {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String  @unique
+  name     String
+  category String // 'ads' | 'gateway'
+  authType String  @map("auth_type") // 'oauth2' | 'api_key' | 'webhook'
+  isActive Boolean @default(true) @map("is_active")
+
+  integrations Integration[]
+
+  @@map("integration_providers")
+}
+
+model Integration {
+  id             String            @id @default(uuid()) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  providerId     String            @map("provider_id") @db.Uuid
+  name           String
+  status         IntegrationStatus @default(PENDING)
+  lastSyncAt     DateTime?         @map("last_sync_at")
+  syncIntervalSec Int              @default(900) @map("sync_interval_sec")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id])
+  provider   IntegrationProvider    @relation(fields: [providerId], references: [id])
+  credential IntegrationCredential?
+  syncRuns   SyncRun[]
+
+  @@unique([tenantId, providerId, name])
+  @@index([tenantId])
+  @@map("integrations")
+}
+
+model IntegrationCredential {
+  id            String   @id @default(uuid()) @db.Uuid
+  integrationId String   @unique @map("integration_id") @db.Uuid
+  ciphertext    Bytes
+  keyVersion    Int      @map("key_version")
+  iv            Bytes
+  authTag       Bytes    @map("auth_tag")
+  rotatedAt     DateTime? @map("rotated_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  integration Integration @relation(fields: [integrationId], references: [id])
+
+  @@map("integration_credentials")
+}
+
+model SyncRun {
+  id              String     @id @default(uuid()) @db.Uuid
+  tenantId        String     @map("tenant_id") @db.Uuid
+  integrationId   String     @map("integration_id") @db.Uuid
+  trigger         String // 'schedule' | 'manual'
+  status          SyncStatus @default(QUEUED)
+  startedAt       DateTime?  @map("started_at")
+  finishedAt      DateTime?  @map("finished_at")
+  recordsUpserted Int        @default(0) @map("records_upserted")
+  error           String?
+  cursor          String?
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  integration Integration @relation(fields: [integrationId], references: [id])
+
+  @@index([tenantId, integrationId, startedAt])
+  @@map("sync_runs")
+}
