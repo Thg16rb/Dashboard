@@ -16,7 +16,7 @@ O projeto é construído passo a passo, cada passo abrindo um PR para revisão:
 - [x] **Passo 2 — Auth:** JWT + Refresh rotativo + 2FA TOTP, sessões/dispositivos, login_history. ✅
 - [x] **Passo 3 — Multi-tenancy:** interceptor `SET app.tenant_id` + políticas RLS + RBAC (7 papéis, guards). ✅
 - [x] **Passo 4 — Primeira integração (Adapter+Registry):** contrato `IntegrationConnector` + connector Meta Ads + Stripe. ✅
-- [ ] **Passo 5 — Pipeline de sync:** BullMQ scheduler (15 min) + fanout + "Atualizar Agora" + upsert idempotente.
+- [x] **Passo 5 — Pipeline de sync:** BullMQ scheduler (15 min) + fanout + "Atualizar Agora" + upsert idempotente. ✅
 - [ ] **Passo 6 — Dashboard core:** KPIs server-side, comparação por períodos, WebSocket realtime.
 - [ ] **Passo 7 — Financeiro:** regras parametrizáveis + função de cálculo pura.
 
