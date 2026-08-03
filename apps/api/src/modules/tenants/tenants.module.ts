@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
+import { TenantsController } from './infra/tenants.controller';
+import { TenantsService } from './application/tenants.service';
+import { AuthModule } from '../auth/auth.module';
 
 /**
- * TenantsModule — esqueleto (Passo 1).
- * Camadas domain/application/infra serão preenchidas nos próximos passos do MVP.
+ * TenantsModule — leitura do tenant e membros, protegido por RBAC + RLS
+ * (BLUEPRINT seções 3.1/3.2).
  */
-@Module({})
+@Module({
+  imports: [AuthModule],
+  controllers: [TenantsController],
+  providers: [TenantsService],
+})
 export class TenantsModule {}

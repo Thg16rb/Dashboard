@@ -11,6 +11,7 @@ import { CryptoService } from '../../../infra/crypto/crypto.service';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
 import { AuthTokens, LoginResult, JwtAccessPayload } from '../domain/auth.types';
+import { permissionsForRole } from '../domain/permissions';
 
 interface RequestMeta {
   ip?: string;
@@ -153,7 +154,7 @@ export class AuthService {
       sub: userId,
       tenantId: membership.tenantId,
       role: membership.role,
-      perms: [], // preenchido pelo RBAC no Passo 3
+      perms: permissionsForRole(membership.role),
     };
     const accessToken = this.tokens.signAccess(payload);
     const { token: refreshToken, hash } = this.tokens.generateRefresh();

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { TenantInterceptor } from './infra/tenant/tenant.interceptor';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { CryptoModule } from './infra/crypto/crypto.module';
 import { HealthModule } from './infra/health/health.module';
@@ -25,6 +27,10 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     SyncModule,
     FinanceModule,
     WebhooksModule,
+  ],
+  providers: [
+    // Popula o contexto de tenant (RLS) em todo request autenticado.
+    { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
   ],
 })
 export class AppModule {}

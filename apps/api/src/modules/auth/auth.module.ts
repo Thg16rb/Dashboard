@@ -7,6 +7,8 @@ import { TokenService } from './application/token.service';
 import { TotpService } from './application/totp.service';
 import { SessionsService } from './application/sessions.service';
 import { JwtStrategy } from './infra/jwt.strategy';
+import { JwtAuthGuard } from './infra/jwt-auth.guard';
+import { PermissionsGuard } from './infra/permissions.guard';
 
 /**
  * AuthModule — JWT + Refresh rotativo + 2FA TOTP (BLUEPRINT seção 3.3/3.4).
@@ -20,7 +22,9 @@ import { JwtStrategy } from './infra/jwt.strategy';
     TotpService,
     SessionsService,
     JwtStrategy,
+    JwtAuthGuard,
+    PermissionsGuard,
   ],
-  exports: [TokenService],
+  exports: [TokenService, JwtAuthGuard, PermissionsGuard],
 })
 export class AuthModule {}
