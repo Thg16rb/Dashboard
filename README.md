@@ -62,9 +62,19 @@ pnpm dev
 
 Health check da API: `GET http://localhost:3333/health`.
 
+## Testes (Passo 8)
+
+Suíte Jest (roda no CI, sem dependência de banco):
+- **Funcionalidade**: cálculo financeiro (seção 7.2), KPIs (seção 8.1), períodos de comparação.
+- **Segurança**: RBAC por papel (isolamento de permissões), AES-256-GCM (round-trip + detecção de adulteração via authTag), verificação HMAC de webhook (rejeita assinatura/corpo adulterado e header ausente).
+
+```bash
+pnpm --filter @dashboard/api test
+```
+
 ## Status
-Fase: **MVP** (~45% do escopo total). Início: 2026-08-03. **Passos 1 e 2 concluídos.**
-Próximo: **Passo 3 — Multi-tenancy (interceptor SET app.tenant_id + RLS + RBAC).**
+Fase: **MVP concluído** (Passos 1–8). Início: 2026-08-03.
+Todos os passos com **CI verde** (build + lint + testes). PRs empilhados #1→#8.
 
 ### Endpoints de auth (Passo 2)
 `POST /auth/login` · `POST /auth/2fa` · `POST /auth/refresh` · `POST /auth/logout` ·
