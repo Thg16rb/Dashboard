@@ -1,4 +1,6 @@
-FROM node:20-alpine
+# node:20-slim (Debian) — tem OpenSSL, necessário para o engine do Prisma.
+FROM node:20-slim
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm i -g pnpm
 WORKDIR /app
 
