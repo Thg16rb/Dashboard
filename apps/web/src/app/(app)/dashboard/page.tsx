@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [range, setRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
   const [editing, setEditing] = useState(false);
+  const [realCampaigns, setRealCampaigns] = useState<Array<{ campanha: string; investido: number; receita: number; roas: number; conversoes: number }> | null>(null);
   const calRef = useRef<HTMLDivElement>(null);
 
   // carrega a preferência salva do cliente
@@ -68,12 +69,25 @@ export default function DashboardPage() {
   useEffect(() => {
     let active = true;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    fetch(`${API}/dashboard/kpis?period=${period}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+    fetch(`${API}/dashboard/kpis?period=${period}`, { headers })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => { if (active) { setData(d); setLive(true); } })
+      .then((d) => {
+        if (!active) return;
+        setData(d);
+        // "LIVE" só quando há vendas reais no período; senão mostra demo.
+        if (d.hasData) { setLive(true); }
+        else { setData(demoData(period)); setLive(false); }
+      })
       .catch(() => { if (active) { setData(demoData(period)); setLive(false); } });
+
+    // Campanhas reais (vendas por utm_campaign). Se vier vazio, usa demo.
+    fetch(`${API}/dashboard/campaigns?period=${period}`, { headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows) => { if (active) setRealCampaigns(Array.isArray(rows) && rows.length ? rows : null); })
+      .catch(() => { if (active) setRealCampaigns(null); });
+
     return () => { active = false; };
   }, [period]);
 
@@ -192,22 +206,44 @@ export default function DashboardPage() {
       </div>
 
       <div className="table-box">
-        <span className="tb-title">DESEMPENHO POR CONTA</span>
-        <table>
-          <thead><tr><th>PLATAFORMA</th><th>CONTA</th><th className="num">INVESTIDO</th><th className="num">RECEITA</th><th className="num">ROAS</th><th className="num">CONV.</th></tr></thead>
-          <tbody>
-            {campaigns.map((c, i) => (
-              <tr key={i}>
-                <td className="strong">{c.plataforma}</td>
-                <td className="dim">{c.conta}</td>
-                <td className="num">{c.investido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</td>
-                <td className="num">{c.receita.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</td>
-                <td className="num"><span className={c.roas >= 3 ? 'roas good' : 'roas'}>{c.roas.toFixed(2)}×</span></td>
-                <td className="num">{c.conversoes}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <span className="tb-title">
+          {realCampaigns ? 'RECEITA POR CAMPANHA · vendas reais' : 'DESEMPENHO POR CONTA'}
+        </span>
+        {realCampaigns ? (
+          <table>
+            <thead><tr><th>CAMPANHA (UTM)</th><th className="num">INVESTIDO</th><th className="num">RECEITA</th><th className="num">ROAS</th><th className="num">VENDAS</th></tr></thead>
+            <tbody>
+              {realCampaigns.map((c, i) => (
+                <tr key={i}>
+                  <td className="strong">{c.campanha}</td>
+                  <td className="num">{c.investido ? c.investido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : '— *'}</td>
+                  <td className="num">{c.receita.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</td>
+                  <td className="num">{c.roas ? <span className={c.roas >= 3 ? 'roas good' : 'roas'}>{c.roas.toFixed(2)}×</span> : <span className="dim">— *</span>}</td>
+                  <td className="num">{c.conversoes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <table>
+            <thead><tr><th>PLATAFORMA</th><th>CONTA</th><th className="num">INVESTIDO</th><th className="num">RECEITA</th><th className="num">ROAS</th><th className="num">CONV.</th></tr></thead>
+            <tbody>
+              {campaigns.map((c, i) => (
+                <tr key={i}>
+                  <td className="strong">{c.plataforma}</td>
+                  <td className="dim">{c.conta}</td>
+                  <td className="num">{c.investido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</td>
+                  <td className="num">{c.receita.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</td>
+                  <td className="num"><span className={c.roas >= 3 ? 'roas good' : 'roas'}>{c.roas.toFixed(2)}×</span></td>
+                  <td className="num">{c.conversoes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {realCampaigns && (
+          <p className="tb-note">* Investido/ROAS aparecem quando a conta de anúncios (Meta/Google) estiver conectada.</p>
+        )}
       </div>
 
       <style jsx>{`
@@ -272,6 +308,7 @@ export default function DashboardPage() {
         .num { text-align: right; font-variant-numeric: tabular-nums; }
         .strong { color: #eef3e8; } .dim { color: #7f887e; }
         .roas { color: #d7dcd4; } .roas.good { color: #b6ff3d; }
+        .tb-note { font-size: 11px; color: #6d766c; margin: 12px 0 0; }
       `}</style>
     </div>
   );

@@ -20,4 +20,13 @@ export class DashboardController {
   ) {
     return this.dashboard.getKpis(user.tenantId, period);
   }
+
+  @RequirePermissions('dashboard:read')
+  @Get('campaigns')
+  campaigns(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('period', new DefaultValuePipe('30d')) period: PeriodPreset,
+  ) {
+    return this.dashboard.getCampaigns(user.tenantId, period);
+  }
 }
