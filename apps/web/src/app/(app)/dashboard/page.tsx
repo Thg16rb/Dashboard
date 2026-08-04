@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { demoData, demoSeries, demoCampaigns } from './demo-data';
+import { demoData, demoSeries, demoCampaigns, demoLeadsByHour, demoSalesByHour } from './demo-data';
 
 type Kpis = Record<string, number>;
 interface DashboardResult { kpis: Kpis; variations: Record<string, number>; }
@@ -111,6 +111,8 @@ export default function DashboardPage() {
   const variations = data?.variations ?? {};
   const series = useMemo(() => demoSeries(period), [period]);
   const campaigns = useMemo(() => demoCampaigns(period), [period]);
+  const leadsHour = useMemo(() => demoLeadsByHour(period), [period]);
+  const salesHour = useMemo(() => demoSalesByHour(period), [period]);
 
   // cards = KPIs selecionados; métricas = os demais
   const cards = KPI_ORDER.filter((k) => selected.includes(k));
@@ -203,6 +205,22 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="hours-row">
+        <HourChart
+          title="PICO DE CHEGADA DE LEADS · por hora"
+          data={leadsHour}
+          color="#6db3ff"
+          unit="leads"
+        />
+        <HourChart
+          title="MELHOR HORÁRIO DE VENDAS · por hora"
+          data={salesHour}
+          color="#b6ff3d"
+          unit="R$"
+          money
+        />
       </div>
 
       <div className="table-box">
@@ -302,6 +320,8 @@ export default function DashboardPage() {
         .s-label { font-size: 10.5px; color: #7f887e; }
         .s-value { font-size: 16px; color: #e8ede4; font-variant-numeric: tabular-nums; }
 
+        .hours-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+        @media (max-width: 820px) { .hours-row { grid-template-columns: 1fr; } }
         .table-box table { width: 100%; border-collapse: collapse; }
         .table-box th { text-align: left; font-size: 10px; letter-spacing: 0.1em; color: #5f685f; padding: 8px 10px; border-bottom: 1px solid #1c211d; font-weight: 400; }
         .table-box td { padding: 11px 10px; border-bottom: 1px solid #141715; font-size: 13px; }
@@ -316,12 +336,16 @@ export default function DashboardPage() {
 
 function Chart({ series }: { series: Array<{ label: string; receita: number; investido: number }> }) {
   const W = 640, H = 180, P = 8;
+  const BOT = 14; // espaço para os rótulos do eixo X
   const max = Math.max(...series.map((s) => Math.max(s.receita, s.investido)), 1);
   const x = (i: number) => P + (i / (series.length - 1)) * (W - P * 2);
-  const y = (v: number) => H - P - (v / max) * (H - P * 2);
+  const y = (v: number) => H - P - BOT - (v / max) * (H - P * 2 - BOT);
+  // mostra ~8 rótulos no eixo X (horas quando período é Hoje/Ontem)
+  const step = Math.max(1, Math.round(series.length / 8));
   const path = (key: 'receita' | 'investido') =>
     series.map((s, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(s[key]).toFixed(1)}`).join(' ');
-  const area = `${path('receita')} L ${x(series.length - 1).toFixed(1)} ${H - P} L ${x(0).toFixed(1)} ${H - P} Z`;
+  const baseY = H - P - BOT;
+  const area = `${path('receita')} L ${x(series.length - 1).toFixed(1)} ${baseY} L ${x(0).toFixed(1)} ${baseY} Z`;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="180" preserveAspectRatio="none" style={{ display: 'block' }}>
       <defs>
@@ -331,11 +355,89 @@ function Chart({ series }: { series: Array<{ label: string; receita: number; inv
         </linearGradient>
       </defs>
       {[0.25, 0.5, 0.75].map((g) => (
-        <line key={g} x1={P} x2={W - P} y1={H * g} y2={H * g} stroke="#1c211d" strokeWidth="1" />
+        <line key={g} x1={P} x2={W - P} y1={baseY * g} y2={baseY * g} stroke="#1c211d" strokeWidth="1" />
       ))}
       <path d={area} fill="url(#g)" />
       <path d={path('investido')} fill="none" stroke="#4a7bd1" strokeWidth="1.5" />
       <path d={path('receita')} fill="none" stroke="#b6ff3d" strokeWidth="2" />
+      {series.map((s, i) =>
+        i % step === 0 ? (
+          <text key={`x${i}`} x={x(i)} y={H - 2} fontSize="8" fill="#5f685f" textAnchor="middle" fontFamily="monospace">
+            {s.label}
+          </text>
+        ) : null,
+      )}
     </svg>
+  );
+}
+
+/**
+ * Gráfico de barras por hora (0h–23h). Destaca a barra do horário de pico
+ * e mostra qual foi o melhor horário no rótulo.
+ */
+function HourChart({
+  title, data, color, unit, money,
+}: {
+  title: string;
+  data: Array<{ hora: string; valor: number }>;
+  color: string;
+  unit: string;
+  money?: boolean;
+}) {
+  const W = 520, H = 150, P = 6;
+  const max = Math.max(...data.map((d) => d.valor), 1);
+  const peakIdx = data.reduce((best, d, i) => (d.valor > data[best].valor ? i : best), 0);
+  const bw = (W - P * 2) / data.length;
+  const fmtVal = (v: number) =>
+    money ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+          : v.toLocaleString('pt-BR');
+
+  return (
+    <div className="hour-box">
+      <div className="hour-head">
+        <span className="hour-title">{title}</span>
+        <span className="hour-peak" style={{ color }}>
+          ● pico {data[peakIdx].hora} · {fmtVal(data[peakIdx].valor)}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="150" preserveAspectRatio="none" style={{ display: 'block' }}>
+        {[0.33, 0.66].map((g) => (
+          <line key={g} x1={P} x2={W - P} y1={H * g} y2={H * g} stroke="#1c211d" strokeWidth="1" />
+        ))}
+        {data.map((d, i) => {
+          const bh = (d.valor / max) * (H - P * 2 - 14);
+          const isPeak = i === peakIdx;
+          return (
+            <rect
+              key={i}
+              x={P + i * bw + 1}
+              y={H - P - bh}
+              width={Math.max(bw - 2, 1)}
+              height={bh}
+              rx={1}
+              fill={color}
+              opacity={isPeak ? 1 : 0.32}
+            />
+          );
+        })}
+        {/* rótulos de hora a cada 3h */}
+        {data.map((d, i) =>
+          i % 3 === 0 ? (
+            <text key={`t${i}`} x={P + i * bw + bw / 2} y={H - 1} fontSize="7" fill="#5f685f" textAnchor="middle" fontFamily="monospace">
+              {d.hora}
+            </text>
+          ) : null,
+        )}
+      </svg>
+      <span className="hour-unit">{unit === 'R$' ? 'receita por hora' : `${unit} por hora`}</span>
+
+      <style jsx>{`
+        .hour-box { background: #0e100f; border: 1px solid #1c211d; border-radius: 6px; padding: 16px 18px; }
+        .hour-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+        .hour-title { font-size: 10.5px; letter-spacing: 0.12em; color: #6d766c; }
+        .hour-peak { font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .hour-unit { display: block; margin-top: 8px; font-size: 10px; color: #5f685f; letter-spacing: 0.06em; }
+      `}</style>
+    </div>
   );
 }

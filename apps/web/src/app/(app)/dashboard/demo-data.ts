@@ -91,3 +91,40 @@ export function demoCampaigns(period: string): CampaignRow[] {
     };
   });
 }
+
+export interface HourPoint { hora: string; valor: number; }
+
+/**
+ * Distribuição por hora do dia (0h–23h) para os gráficos de pico.
+ * Curva realista: baixa de madrugada, picos ~12h e ~20h (horário nobre).
+ */
+function hourlyCurve(total: number, peak1 = 12, peak2 = 20): HourPoint[] {
+  const out: HourPoint[] = [];
+  let soma = 0;
+  const raw: number[] = [];
+  for (let h = 0; h < 24; h++) {
+    const g1 = Math.exp(-Math.pow(h - peak1, 2) / 10);
+    const g2 = Math.exp(-Math.pow(h - peak2, 2) / 8) * 1.15;
+    const base = 0.04 + (h >= 7 && h <= 23 ? 0.05 : 0);
+    const v = base + g1 + g2;
+    raw.push(v);
+    soma += v;
+  }
+  for (let h = 0; h < 24; h++) {
+    out.push({ hora: `${String(h).padStart(2, '0')}h`, valor: Math.round((raw[h] / soma) * total) });
+  }
+  return out;
+}
+
+/** Pico de chegada de LEADS por hora (nº de leads). */
+export function demoLeadsByHour(period: string): HourPoint[] {
+  const conv = (BASE[period] ?? BASE['30d']).kpis.conversoes;
+  // leads ~ 6x conversões; picos de captação um pouco antes das vendas
+  return hourlyCurve(Math.round(conv * 6), 11, 19);
+}
+
+/** Pico de VENDAS (receita) por hora — melhor horário de venda. */
+export function demoSalesByHour(period: string): HourPoint[] {
+  const receita = (BASE[period] ?? BASE['30d']).kpis.receitaBruta;
+  return hourlyCurve(Math.round(receita), 13, 20);
+}
