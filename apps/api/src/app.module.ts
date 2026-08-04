@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bullmq';
 import { TenantInterceptor } from './infra/tenant/tenant.interceptor';
+import { ApiLogInterceptor } from './infra/logging/api-log.interceptor';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { CryptoModule } from './infra/crypto/crypto.module';
 import { RedisModule } from './infra/redis/redis.module';
@@ -16,6 +17,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MasterModule } from './modules/master/master.module';
+import { ActivityModule } from './modules/activity/activity.module';
 
 @Module({
   imports: [
@@ -47,10 +49,13 @@ import { MasterModule } from './modules/master/master.module';
     WebhooksModule,
     DashboardModule,
     MasterModule,
+    ActivityModule,
   ],
   providers: [
     // Popula o contexto de tenant (RLS) em todo request autenticado.
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    // Registra cada request no log de atividade (painel de monitoramento).
+    { provide: APP_INTERCEPTOR, useClass: ApiLogInterceptor },
   ],
 })
 export class AppModule {}

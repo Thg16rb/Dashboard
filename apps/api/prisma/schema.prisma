@@ -255,3 +255,22 @@ model Sale {
   @@index([tenantId, utmCampaign])
   @@map("sales")
 }
+
+// Log de atividade da API (BLUEPRINT seção 8.4 — monitoramento).
+// Registra cada requisição e evento de webhook para o painel de atividade.
+model ApiLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  kind       String   @default("http") // 'http' | 'webhook'
+  method     String
+  path       String
+  statusCode Int      @map("status_code")
+  durationMs Int      @map("duration_ms")
+  tenantId   String?  @map("tenant_id") @db.Uuid
+  ip         String?
+  summary    String?  // ex.: "venda salva R$197" ou mensagem de erro
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@map("api_logs")
+}

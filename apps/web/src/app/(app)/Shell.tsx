@@ -9,6 +9,8 @@ const NAV: Array<[string, string, string]> = [
   ['/integracoes', 'Integrações', '◈'],
   ['/financeiro', 'Financeiro', '₪'],
   ['/webhooks', 'Webhooks', '⇄'],
+  ['/atividade', 'Atividade', '≋'],
+  ['/api-docs', 'API / Docs', '⌘'],
   ['/usuarios', 'Usuários', '⊙'],
 ];
 

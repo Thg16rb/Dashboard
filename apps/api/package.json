@@ -20,6 +20,7 @@
     "socket.io": "^4.8.0",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
+    "@nestjs/swagger": "^7.4.0",
     "@nestjs/bullmq": "^10.2.0",
     "@nestjs/platform-fastify": "^10.4.0",
     "@nestjs/terminus": "^10.2.0",
