@@ -18,6 +18,23 @@ async function bootstrap() {
   await app.register(helmet);
   app.enableCors({ origin: true, credentials: true });
 
+  // Captura o corpo bruto nas rotas de webhook — necessário para validar a
+  // assinatura HMAC do gateway (a assinatura é calculada sobre o body exato).
+  const fastify = app.getHttpAdapter().getInstance();
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (req: any, body: string, done: (err: Error | null, parsed?: unknown) => void) => {
+      req.rawBody = body; // guarda o corpo bruto para validação HMAC
+      try {
+        done(null, body ? JSON.parse(body) : {});
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

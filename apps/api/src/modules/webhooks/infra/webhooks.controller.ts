@@ -1,20 +1,25 @@
-import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { FastifyRequest } from 'fastify';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { WebhooksService } from '../application/webhooks.service';
+import { CredentialsService } from '../../integrations/application/credentials.service';
+import { IntegrationRegistry } from '../../integrations/application/integration.registry';
 import { diggionpayToSale } from '../../integrations/infra/connectors/diggionpay.connector';
 
 /**
  * Recebe webhooks dos gateways e salva a venda (BLUEPRINT seção 6).
- * Responde 200 rápido (ack-first). O parse extrai valor + UTM/click id de
- * um payload genérico; parsers específicos por gateway entram em seguida.
- *
- * A rota inclui o integrationId para saber a qual empresa/gateway pertence.
+ * Multi-tenant: cada empresa usa seu próprio integrationId na URL e seu próprio
+ * webhookSecret — a assinatura HMAC é validada com o secret DAQUELE cliente,
+ * então uma empresa nunca aceita venda destinada a outra.
+ * Responde 200 rápido (ack-first).
  */
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly webhooks: WebhooksService,
+    private readonly credentials: CredentialsService,
+    private readonly registry: IntegrationRegistry,
   ) {}
 
   @Post(':provider/:integrationId')
@@ -23,22 +28,47 @@ export class WebhooksController {
     @Param('provider') provider: string,
     @Param('integrationId') integrationId: string,
     @Body() payload: Record<string, unknown>,
+    @Req() req: FastifyRequest & { rawBody?: string },
   ) {
-    // Descobre o tenant a partir da integração (sem RLS: rota pública de webhook).
+    // Descobre a integração + tenant (rota pública; não usa RLS).
     const integration = await this.prisma.integration.findUnique({
       where: { id: integrationId },
-      select: { tenantId: true },
+      select: { tenantId: true, provider: { select: { code: true } } },
     });
     if (!integration) {
-      // Não vaza detalhe; responde 200 para o gateway não reenfileirar infinitamente.
+      // Responde 200 para o gateway não reenfileirar infinitamente.
       return { received: true, ignored: 'integration_desconhecida' };
     }
+
+    // Validação HMAC com o webhookSecret DESTE cliente (isolamento por empresa).
+    const cred = await this.credentials.get(integrationId);
+    const secret = cred?.webhookSecret ?? cred?.secretKey;
+    const connector = safeConnector(this.registry, integration.provider.code);
+
+    if (connector?.verifySignature && secret) {
+      const raw = req.rawBody ?? JSON.stringify(payload);
+      const headers = req.headers as Record<string, string | undefined>;
+      const valid = connector.verifySignature(headers, raw, secret);
+      if (!valid) {
+        // Assinatura inválida → não salva. 200 evita retries agressivos, mas marca ignorado.
+        return { received: true, ignored: 'assinatura_invalida' };
+      }
+    }
+    // Se não há secret configurado ainda, aceita (cliente pode configurar depois).
 
     const sale = normalizeSale(provider, payload);
     if (!sale) return { received: true, ignored: 'evento_sem_venda' };
 
     const res = await this.webhooks.saveSale(integration.tenantId, integrationId, sale);
     return { received: true, saved: res.saved, duplicate: res.duplicate ?? false };
+  }
+}
+
+function safeConnector(registry: IntegrationRegistry, code: string) {
+  try {
+    return registry.get(code);
+  } catch {
+    return undefined;
   }
 }
 
