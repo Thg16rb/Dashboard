@@ -226,3 +226,32 @@ model FinanceRule {
   @@index([financeConfigId, isActive])
   @@map("finance_rules")
 }
+
+// Venda recebida via webhook do gateway (BLUEPRINT seção 2).
+// Guarda os parâmetros de rastreamento (UTM + click id) para casar com a campanha.
+model Sale {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  integrationId String   @map("integration_id") @db.Uuid
+  externalId    String   @map("external_id")
+  grossAmount   Decimal  @map("gross_amount") @db.Decimal(14, 4)
+  feeAmount     Decimal  @default(0) @map("fee_amount") @db.Decimal(14, 4)
+  netAmount     Decimal  @map("net_amount") @db.Decimal(14, 4)
+  status        String
+  paymentMethod String?  @map("payment_method")
+  customerHash  String?  @map("customer_hash")
+  // rastreamento (venda ↔ campanha)
+  utmSource     String?  @map("utm_source")
+  utmMedium     String?  @map("utm_medium")
+  utmCampaign   String?  @map("utm_campaign")
+  utmContent    String?  @map("utm_content")
+  utmTerm       String?  @map("utm_term")
+  clickId       String?  @map("click_id") // fbclid / gclid / ttclid
+  occurredAt    DateTime @map("occurred_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([integrationId, externalId])
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, utmCampaign])
+  @@map("sales")
+}

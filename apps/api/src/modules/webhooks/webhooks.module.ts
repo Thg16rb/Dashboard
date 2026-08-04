@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
+import { WebhooksController } from './infra/webhooks.controller';
+import { WebhooksService } from './application/webhooks.service';
 
 /**
- * WebhooksModule — esqueleto (Passo 1).
- * Camadas domain/application/infra serão preenchidas nos próximos passos do MVP.
+ * WebhooksModule — recebe vendas dos gateways e salva no banco (BLUEPRINT seção 6).
  */
-@Module({})
+@Module({
+  controllers: [WebhooksController],
+  providers: [WebhooksService],
+})
 export class WebhooksModule {}
