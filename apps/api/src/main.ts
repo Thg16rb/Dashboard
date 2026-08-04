@@ -13,17 +13,17 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+    // Desliga o parser de body do Nest; registramos o nosso (com rawBody) abaixo.
+    { bodyParser: false },
   );
 
   await app.register(helmet);
   app.enableCors({ origin: true, credentials: true });
 
-  // Guarda o corpo bruto (rawBody) nas rotas de webhook — usado para validar a
-  // assinatura HMAC. Substitui o parser JSON pelo próprio, capturando a string
-  // exata antes do JSON.parse (removendo o parser padrão para evitar conflito).
+  // Único parser JSON: captura a string exata (rawBody) antes do JSON.parse,
+  // para validar a assinatura HMAC dos webhooks sobre o corpo original.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fastify = app.getHttpAdapter().getInstance() as any;
-  fastify.removeContentTypeParser('application/json');
   fastify.addContentTypeParser(
     'application/json',
     { parseAs: 'string' },
