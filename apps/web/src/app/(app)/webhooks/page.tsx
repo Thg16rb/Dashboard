@@ -47,6 +47,12 @@ export default function WebhooksPage() {
           <thead><tr><th>PROVEDOR</th><th>URL DO SEU WEBHOOK (copie)</th><th>ONDE COLAR NO PAINEL DELES</th><th>EVENTOS ÚTEIS</th></tr></thead>
           <tbody>
             <tr>
+              <td className="strong">DiggionPay</td>
+              <td className="mono url">https://api.dashboard.sistemautomacao.com/webhooks/diggionpay/&lt;id&gt;</td>
+              <td className="dim">PUT /api/v1/webhook (webhook_url) ou painel /aplicacoes-api</td>
+              <td className="mono dim">order.completed, order.refunded</td>
+            </tr>
+            <tr>
               <td className="strong">Stripe</td>
               <td className="mono url">https://api.dashboard.sistemautomacao.com/webhooks/stripe/&lt;id&gt;</td>
               <td className="dim">Developers → Webhooks → Add endpoint</td>
@@ -88,6 +94,7 @@ export default function WebhooksPage() {
             <tr><td className="strong">Meta Ads</td><td className="dim">Gasto, impressões, cliques, conversões, campanhas, contas de anúncio (várias BMs)</td><td><span className="tag api">API</span></td></tr>
             <tr><td className="strong">Google Ads</td><td className="dim">Custo, cliques, conversões, campanhas, palavras-chave</td><td><span className="tag api">API</span></td></tr>
             <tr><td className="strong">TikTok Ads</td><td className="dim">Gasto, visualizações, cliques, conversões por campanha</td><td><span className="tag api">API</span></td></tr>
+            <tr><td className="strong">DiggionPay</td><td className="dim">Vendas PIX, valor, status (pago/estornado), método, cliente + metadata (UTM/tracking). Assinatura HMAC-SHA256.</td><td><span className="tag both">API + Webhook</span></td></tr>
             <tr><td className="strong">Stripe / Mercado Pago</td><td className="dim">Vendas, valor bruto, taxas, reembolsos, status do pagamento</td><td><span className="tag both">API + Webhook</span></td></tr>
             <tr><td className="strong">Hotmart / Kiwify</td><td className="dim">Vendas aprovadas, reembolsos, comissões, cliente</td><td><span className="tag both">API + Webhook</span></td></tr>
           </tbody>

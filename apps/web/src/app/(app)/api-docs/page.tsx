@@ -20,9 +20,11 @@ const GROUPS: Array<{ title: string; endpoints: Ep[] }> = [
   {
     title: 'RECEBER VENDAS (WEBHOOK) — mandar dados PARA a plataforma',
     endpoints: [
-      { method: 'POST', path: '/webhooks/:provider/:integrationId', desc: 'Gateway envia a venda; salvamos com rastreamento', auth: 'HMAC do gateway',
-        body: '{\n  "id": "venda_123",\n  "amount": 197.00,\n  "fee": 9.85,\n  "status": "paid",\n  "utm_source": "facebook",\n  "utm_campaign": "black-friday",\n  "fbclid": "IwAR…"\n}',
+      { method: 'POST', path: '/webhooks/diggionpay/:integrationId', desc: 'DiggionPay envia a venda (order.completed). Rastreamento vai em metadata. Assinatura em X-Webhook-Signature (HMAC-SHA256).', auth: 'HMAC',
+        body: '{\n  "event": "order.completed",\n  "event_id": "550e8400-…",\n  "order_id": 456,\n  "amount": 97.90,\n  "status": "completed",\n  "payment_method": "pix",\n  "email": "cliente@exemplo.com",\n  "metadata": {\n    "utm_campaign": "black-friday",\n    "fbclid": "IwAR…"\n  }\n}',
         resp: '{ "received": true, "saved": true, "duplicate": false }' },
+      { method: 'POST', path: '/webhooks/:provider/:integrationId', desc: 'Formato genérico (outros gateways). Aceita campos planos ou aninhados.', auth: 'HMAC do gateway',
+        body: '{ "id": "venda_123", "amount": 197, "status": "paid", "utm_campaign": "x", "fbclid": "…" }' },
     ],
   },
   {

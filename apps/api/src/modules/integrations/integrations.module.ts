@@ -6,6 +6,7 @@ import { CredentialsService } from './application/credentials.service';
 import { IntegrationRegistry } from './application/integration.registry';
 import { MetaAdsConnector } from './infra/connectors/meta-ads.connector';
 import { StripeConnector } from './infra/connectors/stripe.connector';
+import { DiggionPayConnector } from './infra/connectors/diggionpay.connector';
 
 /**
  * IntegrationsModule — Adapter + Registry (BLUEPRINT seção 4).
@@ -20,11 +21,12 @@ import { StripeConnector } from './infra/connectors/stripe.connector';
     CredentialsService,
     MetaAdsConnector,
     StripeConnector,
+    DiggionPayConnector,
     {
       provide: IntegrationRegistry,
-      useFactory: (meta: MetaAdsConnector, stripe: StripeConnector) =>
-        new IntegrationRegistry([meta, stripe]),
-      inject: [MetaAdsConnector, StripeConnector],
+      useFactory: (meta: MetaAdsConnector, stripe: StripeConnector, diggion: DiggionPayConnector) =>
+        new IntegrationRegistry([meta, stripe, diggion]),
+      inject: [MetaAdsConnector, StripeConnector, DiggionPayConnector],
     },
   ],
   exports: [IntegrationRegistry, CredentialsService],

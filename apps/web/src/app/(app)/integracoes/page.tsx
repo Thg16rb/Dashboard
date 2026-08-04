@@ -16,6 +16,7 @@ const CATALOG: Array<{ code: string; name: string; category: 'ads' | 'gateway'; 
   { code: 'meta_ads', name: 'Meta Ads', category: 'ads', fields: ['accessToken', 'adAccountId'] },
   { code: 'google_ads', name: 'Google Ads', category: 'ads', fields: ['developerToken', 'customerId'] },
   { code: 'tiktok_ads', name: 'TikTok Ads', category: 'ads', fields: ['accessToken', 'advertiserId'] },
+  { code: 'diggionpay', name: 'DiggionPay', category: 'gateway', fields: ['publicKey', 'secretKey', 'webhookSecret'] },
   { code: 'stripe', name: 'Stripe', category: 'gateway', fields: ['secretKey'] },
   { code: 'mercadopago', name: 'Mercado Pago', category: 'gateway', fields: ['accessToken'] },
   { code: 'hotmart', name: 'Hotmart', category: 'gateway', fields: ['clientId', 'clientSecret'] },

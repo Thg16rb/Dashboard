@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { WebhooksService } from '../application/webhooks.service';
+import { diggionpayToSale } from '../../integrations/infra/connectors/diggionpay.connector';
 
 /**
  * Recebe webhooks dos gateways e salva a venda (BLUEPRINT seção 6).
@@ -47,6 +48,11 @@ export class WebhooksController {
  * (Stripe/Hotmart/Kiwify) refinam isto depois.
  */
 function normalizeSale(provider: string, p: Record<string, unknown>) {
+  // Parser dedicado da DiggionPay (formato order.completed + metadata).
+  if (provider === 'diggionpay') {
+    return diggionpayToSale(p);
+  }
+
   const num = (v: unknown): number => {
     const n = typeof v === 'string' ? parseFloat(v) : (v as number);
     return Number.isFinite(n) ? n : 0;
