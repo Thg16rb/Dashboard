@@ -85,4 +85,44 @@ export class IntegrationsService {
     });
     return { status: 'ACTIVE' };
   }
+
+  /**
+   * Contas de anúncio Meta já descobertas para a integração (populadas pelo
+   * sync). Leitura local — não bate na Graph API.
+   */
+  async metaAccounts(tenantId: string, integrationId: string) {
+    const integration = await this.prisma.integration.findFirst({
+      where: { id: integrationId, tenantId },
+    });
+    if (!integration) throw new NotFoundException('Integração não encontrada');
+
+    return this.prisma.metaAdAccount.findMany({
+      where: { tenantId, integrationId },
+      select: {
+        id: true,
+        accountId: true,
+        name: true,
+        currency: true,
+        accountStatus: true,
+        isActive: true,
+        lastSyncAt: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /** Remove uma integração e suas credenciais (o cliente desconecta a conta). */
+  async remove(tenantId: string, integrationId: string) {
+    const integration = await this.prisma.integration.findFirst({
+      where: { id: integrationId, tenantId },
+    });
+    if (!integration) throw new NotFoundException('Integração não encontrada');
+
+    await this.prisma.integrationCredential.deleteMany({ where: { integrationId } });
+    await this.prisma.integration.update({
+      where: { id: integrationId },
+      data: { status: 'DISABLED' },
+    });
+    return { status: 'DISABLED' };
+  }
 }

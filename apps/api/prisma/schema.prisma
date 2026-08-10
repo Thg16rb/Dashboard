@@ -170,12 +170,17 @@ model Integration {
   status         IntegrationStatus @default(PENDING)
   lastSyncAt     DateTime?         @map("last_sync_at")
   syncIntervalSec Int              @default(900) @map("sync_interval_sec")
+  // Checkpoint de retomada (ex.: índice da última conta Meta processada) —
+  // permite continuar de onde parou se o sync bater rate limit no meio.
+  syncCursor     String?           @map("sync_cursor")
   createdAt      DateTime          @default(now()) @map("created_at")
 
   tenant     Tenant                 @relation(fields: [tenantId], references: [id])
   provider   IntegrationProvider    @relation(fields: [providerId], references: [id])
   credential IntegrationCredential?
   syncRuns   SyncRun[]
+  metaAdAccounts       MetaAdAccount[]
+  metaCampaignInsights MetaCampaignInsight[]
 
   @@unique([tenantId, providerId, name])
   @@index([tenantId])
@@ -271,6 +276,80 @@ model Sale {
   @@index([tenantId, occurredAt])
   @@index([tenantId, utmCampaign])
   @@map("sales")
+}
+
+// Conta de anúncios Meta (act_...) descoberta via /me/adaccounts para uma
+// integração meta_ads do tenant. Uma integração pode ter várias contas.
+model MetaAdAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  integrationId  String   @map("integration_id") @db.Uuid
+  accountId      String   @map("account_id") // "act_123..." sem prefixo redundante: guardamos com "act_"
+  name           String
+  currency       String?
+  accountStatus  Int?     @map("account_status")
+  isActive       Boolean  @default(true) @map("is_active")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  integration Integration           @relation(fields: [integrationId], references: [id])
+  campaigns   MetaCampaign[]
+  insights    MetaCampaignInsight[]
+
+  @@unique([integrationId, accountId])
+  @@index([tenantId])
+  @@map("meta_ad_accounts")
+}
+
+// Campanha Meta (cadastro, sem métricas — as métricas ficam em MetaCampaignInsight).
+model MetaCampaign {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  adAccountId  String   @map("ad_account_id") @db.Uuid
+  campaignId   String   @map("campaign_id") // ID da campanha na Meta
+  name         String
+  status       String?
+  objective    String?
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  account  MetaAdAccount         @relation(fields: [adAccountId], references: [id])
+  insights MetaCampaignInsight[]
+
+  @@unique([adAccountId, campaignId])
+  @@index([tenantId])
+  @@map("meta_campaigns")
+}
+
+// Insight DIÁRIO por campanha (grão fino — BLUEPRINT). Leitura do dashboard
+// agrega esta tabela; nunca bate na Graph API no request do usuário.
+model MetaCampaignInsight {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  integrationId String  @map("integration_id") @db.Uuid
+  adAccountId  String   @map("ad_account_id") @db.Uuid
+  campaignId   String   @map("campaign_id") @db.Uuid
+  campaignExternalId String @map("campaign_external_id") // redundante p/ leitura rápida sem join
+  campaignName String   @map("campaign_name")
+  date         DateTime @db.Date // dia do insight (grão diário)
+  spend        Decimal  @default(0) @map("spend") @db.Decimal(14, 4)
+  impressions  BigInt   @default(0)
+  clicks       BigInt   @default(0)
+  conversions  Decimal  @default(0) @map("conversions") @db.Decimal(14, 4)
+  conversionValue Decimal @default(0) @map("conversion_value") @db.Decimal(14, 4)
+  currency     String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  integration Integration @relation(fields: [integrationId], references: [id])
+  account     MetaAdAccount @relation(fields: [adAccountId], references: [id])
+  campaign    MetaCampaign  @relation(fields: [campaignId], references: [id])
+
+  // Idempotência: upsert por conta+campanha+dia.
+  @@unique([adAccountId, campaignId, date], name: "ux_meta_insight_account_campaign_date")
+  @@index([tenantId, date])
+  @@index([tenantId, campaignExternalId, date])
+  @@map("meta_campaign_insights")
 }
 
 // Log de atividade da API (BLUEPRINT seção 8.4 — monitoramento).

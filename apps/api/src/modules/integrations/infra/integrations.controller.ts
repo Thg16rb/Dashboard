@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { IntegrationsService } from '../application/integrations.service';
 import { JwtAuthGuard } from '../../auth/infra/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/infra/permissions.guard';
@@ -41,5 +41,24 @@ export class IntegrationsController {
     @Body() dto: SetCredentialsDto,
   ) {
     return this.integrations.setCredentials(user.tenantId, id, dto.credentials);
+  }
+
+  /** Contas de anúncio Meta descobertas para esta integração (leitura local). */
+  @RequirePermissions('integration:read')
+  @Get(':id/meta-accounts')
+  metaAccounts(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
+    return this.integrations.metaAccounts(user.tenantId, id);
+  }
+
+  @RequirePermissions('integration:write')
+  @Delete(':id')
+  remove(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
+    return this.integrations.remove(user.tenantId, id);
   }
 }
