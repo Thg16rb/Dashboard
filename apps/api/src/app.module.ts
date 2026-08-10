@@ -27,11 +27,14 @@ import { ActivityModule } from './modules/activity/activity.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const url = new URL(config.get('REDIS_URL', 'redis://localhost:6379'));
+        // url.password vem PERCENT-ENCODED (a URL nao decodifica sozinha);
+        // sem o decodeURIComponent o BullMQ autentica com a senha errada e
+        // o ioredis fica retentando silenciosamente pra sempre (fila trava).
         return {
           connection: {
             host: url.hostname,
             port: Number(url.port || 6379),
-            password: url.password || undefined,
+            password: url.password ? decodeURIComponent(url.password) : undefined,
           },
         };
       },

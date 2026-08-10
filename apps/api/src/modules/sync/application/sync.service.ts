@@ -58,7 +58,8 @@ export class SyncService implements OnModuleInit {
       { tenantId, integrationId, trigger: 'manual' } as FetchJobData,
       {
         priority: 1,
-        jobId: `manual:${integrationId}`,
+        // BullMQ rejeita ":" em jobId customizado ("Custom Id cannot contain :").
+        jobId: `manual-${integrationId}`,
         attempts: 5,
         backoff: { type: 'exponential', delay: 5000 },
       },

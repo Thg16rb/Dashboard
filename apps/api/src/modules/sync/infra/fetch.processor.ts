@@ -23,9 +23,19 @@ interface MetaAdMetricData {
   conversionValue: number;
 }
 
-// Primeira sincronização de uma integração meta_ads: puxa uma janela maior
-// (30 dias) para o dashboard já nascer com histórico útil, em vez de só 1 dia.
-const META_FIRST_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+// Primeira sincronização de uma integração meta_ads: puxa o histórico máximo
+// que a Graph API permite (37 meses) para o dashboard nascer com o histórico
+// completo do cliente, em vez de só os últimos 30 dias. Syncs seguintes
+// (lastSyncAt já preenchido) usam janela incremental curta, desde o último
+// sync — não refazem os 37 meses a cada ciclo de 15min.
+const META_FIRST_SYNC_LOOKBACK_MONTHS = 37;
+
+/** now - months, preservando dia/hora (usa UTC para não sofrer com DST). */
+function subtractMonths(date: Date, months: number): Date {
+  const d = new Date(date.getTime());
+  d.setUTCMonth(d.getUTCMonth() - months);
+  return d;
+}
 
 /**
  * Executa a sincronização de uma integração (BLUEPRINT seção 5.3):
@@ -67,10 +77,18 @@ export class FetchProcessor extends WorkerHost {
 
       const connector = this.registry.get(integration.provider.code);
       const now = new Date();
-      const defaultLookback =
-        integration.provider.code === 'meta_ads' ? META_FIRST_SYNC_WINDOW_MS : 86400000;
+      // "from" padrão quando não há lastSyncAt: para meta_ads, o histórico
+      // máximo (37 meses); para os demais providers, 1 dia (comportamento
+      // anterior, inalterado). Quando há checkpoint de retomada (syncCursor
+      // preenchido) mas lastSyncAt ainda é null, o processor mantém essa
+      // mesma janela ampla — o cursor indica de qual conta retomar, a janela
+      // de datas não muda até a integração concluir o primeiro sync completo.
+      const defaultFrom =
+        integration.provider.code === 'meta_ads'
+          ? subtractMonths(now, META_FIRST_SYNC_LOOKBACK_MONTHS)
+          : new Date(now.getTime() - 86400000);
       const window = {
-        from: integration.lastSyncAt ?? new Date(now.getTime() - defaultLookback),
+        from: integration.lastSyncAt ?? defaultFrom,
         to: now,
       };
 
