@@ -11,7 +11,14 @@ import {
 import { FastifyRequest } from 'fastify';
 import { AuthService } from '../application/auth.service';
 import { SessionsService } from '../application/sessions.service';
-import { SignupDto, LoginDto, Verify2faDto, RefreshDto } from './dto/auth.dto';
+import {
+  SignupDto,
+  LoginDto,
+  Verify2faDto,
+  RefreshDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAccessPayload } from '../domain/auth.types';
@@ -54,6 +61,22 @@ export class AuthController {
   @Post('logout')
   logout(@Body() dto: RefreshDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  /**
+   * Sempre responde 200 com mensagem genérica, exista ou não o e-mail —
+   * evita enumeração de contas cadastradas.
+   */
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.auth.forgotPassword(dto.email);
+    return { message: 'Se o e-mail existir, você receberá um link para redefinir a senha.' };
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Senha redefinida com sucesso.' };
   }
 
   @UseGuards(JwtAuthGuard)

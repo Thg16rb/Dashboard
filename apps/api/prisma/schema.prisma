@@ -74,11 +74,28 @@ model User {
   status        String    @default("active")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  memberships  Membership[]
-  sessions     Session[]
-  loginHistory LoginHistory[]
+  memberships        Membership[]
+  sessions           Session[]
+  loginHistory       LoginHistory[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+// Token de recuperação de senha ("esqueci minha senha"). Só o hash (sha256)
+// do token é persistido; o valor puro vai apenas no link enviado por e-mail.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Membership {

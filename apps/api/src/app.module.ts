@@ -7,6 +7,7 @@ import { ApiLogInterceptor } from './infra/logging/api-log.interceptor';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { CryptoModule } from './infra/crypto/crypto.module';
 import { RedisModule } from './infra/redis/redis.module';
+import { MailModule } from './infra/mail/mail.module';
 import { HealthModule } from './infra/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -38,6 +39,7 @@ import { ActivityModule } from './modules/activity/activity.module';
     PrismaModule,
     CryptoModule,
     RedisModule,
+    MailModule,
     HealthModule,
     // Módulos de domínio (esqueleto — lógica nos próximos passos)
     AuthModule,

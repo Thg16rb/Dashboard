@@ -3,16 +3,22 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import { randomBytes, createHash } from 'node:crypto';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { CryptoService } from '../../../infra/crypto/crypto.service';
+import { MailService } from '../../../infra/mail/mail.service';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
 import { AuthTokens, LoginResult, JwtAccessPayload } from '../domain/auth.types';
 import { permissionsForRole } from '../domain/permissions';
+
+/** TTL do token de recuperação de senha (BLUEPRINT — esqueci minha senha). */
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
 interface RequestMeta {
   ip?: string;
@@ -29,6 +35,7 @@ export class AuthService {
     private readonly crypto: CryptoService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   /**
@@ -178,6 +185,60 @@ export class AuthService {
       where: { refreshTokenHash: hash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  /**
+   * "Esqueci minha senha": se o e-mail existir, gera um token de reset (guarda
+   * só o hash sha256), envia por e-mail e retorna. Resposta é sempre genérica
+   * no controller — nunca revela se o e-mail existe (evita enumeração).
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return; // silencioso — não vaza existência do e-mail
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await this.prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const webUrl = this.config.get('WEB_URL', 'https://dashboard.sistemautomacao.com');
+    const resetUrl = `${webUrl}/redefinir-senha?token=${token}`;
+    await this.mail.sendPasswordReset(user.email, resetUrl);
+  }
+
+  /**
+   * Valida o token de reset (hash bate, não expirado, não usado), troca a
+   * senha (argon2) e revoga todas as sessões ativas do usuário por segurança.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: record.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   /** Emite access+refresh e persiste a sessão. Usa a primeira membership do usuário. */
