@@ -29,4 +29,22 @@ export class DashboardController {
   ) {
     return this.dashboard.getCampaigns(user.tenantId, period);
   }
+
+  @RequirePermissions('dashboard:read')
+  @Get('timeseries')
+  timeseries(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('period', new DefaultValuePipe('30d')) period: PeriodPreset,
+  ) {
+    return this.dashboard.getTimeseries(user.tenantId, period);
+  }
+
+  @RequirePermissions('dashboard:read')
+  @Get('hourly')
+  hourly(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('period', new DefaultValuePipe('30d')) period: PeriodPreset,
+  ) {
+    return this.dashboard.getHourly(user.tenantId, period);
+  }
 }

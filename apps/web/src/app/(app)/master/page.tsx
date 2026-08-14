@@ -11,50 +11,32 @@ interface Tenant {
 }
 interface Stats { empresas: number; usuarios: number; integracoes: number; sincronizacoes: number; }
 
-function roleFromToken(): string {
-  try {
-    const t = localStorage.getItem('token');
-    if (!t || t === 'demo') return 'demo';
-    const p = JSON.parse(atob(t.split('.')[1]));
-    return p.role ?? '';
-  } catch { return ''; }
-}
-
 export default function MasterPage() {
   const router = useRouter();
-  const [role, setRole] = useState<string>('');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [toast, setToast] = useState('');
   const [q, setQ] = useState('');
 
   useEffect(() => {
-    const r = roleFromToken();
-    setRole(r);
     const token = localStorage.getItem('token');
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token) { router.replace('/login'); return; }
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
 
-    if (r === 'demo') {
-      // Demonstração quando não há backend/ADMIN_GERAL real
-      setStats({ empresas: 3, usuarios: 8, integracoes: 12, sincronizacoes: 420 });
-      setTenants([
-        { id: '1', name: 'Studio X Marketing', slug: 'studio-x', plan: 'pro', status: 'active', usuarios: 4, integracoes: 5, createdAt: '2026-07-20' },
-        { id: '2', name: 'Loja Verão', slug: 'loja-verao', plan: 'free', status: 'active', usuarios: 2, integracoes: 3, createdAt: '2026-07-28' },
-        { id: '3', name: 'Agência RYGO', slug: 'rygo', plan: 'pro', status: 'active', usuarios: 2, integracoes: 4, createdAt: '2026-08-01' },
-      ]);
-      return;
-    }
-
-    fetch(`${API}/master/stats`, { headers }).then((x) => x.ok ? x.json() : null).then(setStats).catch(() => {});
-    fetch(`${API}/master/tenants`, { headers }).then((x) => x.ok ? x.json() : []).then(setTenants).catch(() => setTenants([]));
-  }, []);
+    fetch(`${API}/master/stats`, { headers })
+      .then((x) => {
+        if (x.status === 401) { localStorage.removeItem('token'); router.replace('/login'); return null; }
+        return x.ok ? x.json() : null;
+      })
+      .then((d) => { if (d) setStats(d); })
+      .catch(() => {});
+    fetch(`${API}/master/tenants`, { headers })
+      .then((x) => (x.ok ? x.json() : []))
+      .then(setTenants)
+      .catch(() => setTenants([]));
+  }, [router]);
 
   async function impersonate(t: Tenant) {
-    if (role === 'demo') {
-      setToast(`(demo) entraria na empresa "${t.name}"`);
-      setTimeout(() => setToast(''), 3000);
-      return;
-    }
     const token = localStorage.getItem('token');
     const r = await fetch(`${API}/master/impersonate/${t.id}`, {
       method: 'POST',

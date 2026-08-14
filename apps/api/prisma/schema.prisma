@@ -338,6 +338,32 @@ model MetaCampaignInsight {
   conversions  Decimal  @default(0) @map("conversions") @db.Decimal(14, 4)
   conversionValue Decimal @default(0) @map("conversion_value") @db.Decimal(14, 4)
   currency     String?
+
+  // Métricas diretas do insight (campos extras da Graph API).
+  reach              BigInt  @default(0)
+  frequency          Decimal @default(0) @db.Decimal(10, 4)
+  cpm                Decimal @default(0) @db.Decimal(14, 4)
+  cpc                Decimal @default(0) @db.Decimal(14, 4)
+  cpp                Decimal @default(0) @db.Decimal(14, 4)
+  ctr                Decimal @default(0) @db.Decimal(10, 6)
+  inlineLinkClicks   BigInt  @default(0) @map("inline_link_clicks")
+  uniqueClicks       BigInt  @default(0) @map("unique_clicks")
+
+  // Mensagens (PRIORIDADE — métrica principal pedida: conversas iniciadas).
+  messagingConversations BigInt @default(0) @map("messaging_conversations")
+  messagingFirstReply    BigInt @default(0) @map("messaging_first_reply")
+  messagingConnections   BigInt @default(0) @map("messaging_connections")
+  messagingOrders        BigInt @default(0) @map("messaging_orders")
+
+  // Leads / compras (dedup por chave canônica — nunca soma de action_types repetidos).
+  leads          BigInt  @default(0)
+  purchases      BigInt  @default(0)
+  purchaseValue  Decimal @default(0) @map("purchase_value") @db.Decimal(14, 4)
+
+  // Engajamento / vídeo.
+  postEngagement BigInt @default(0) @map("post_engagement")
+  videoViews     BigInt @default(0) @map("video_views")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

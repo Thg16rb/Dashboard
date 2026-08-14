@@ -21,6 +21,23 @@ interface MetaAdMetricData {
   clicks: number;
   conversions: number;
   conversionValue: number;
+  reach?: number;
+  frequency?: number;
+  cpm?: number;
+  cpc?: number;
+  cpp?: number;
+  ctr?: number;
+  inlineLinkClicks?: number;
+  uniqueClicks?: number;
+  messagingConversations?: number;
+  messagingFirstReply?: number;
+  messagingConnections?: number;
+  messagingOrders?: number;
+  leads?: number;
+  purchases?: number;
+  purchaseValue?: number;
+  postEngagement?: number;
+  videoViews?: number;
 }
 
 // Primeira sincronização de uma integração meta_ads: puxa o histórico máximo
@@ -226,6 +243,23 @@ export class FetchProcessor extends WorkerHost {
           conversions: d.conversions,
           conversionValue: d.conversionValue,
           currency: d.currency,
+          reach: BigInt(Math.round(d.reach ?? 0)),
+          frequency: d.frequency ?? 0,
+          cpm: d.cpm ?? 0,
+          cpc: d.cpc ?? 0,
+          cpp: d.cpp ?? 0,
+          ctr: d.ctr ?? 0,
+          inlineLinkClicks: BigInt(Math.round(d.inlineLinkClicks ?? 0)),
+          uniqueClicks: BigInt(Math.round(d.uniqueClicks ?? 0)),
+          messagingConversations: BigInt(Math.round(d.messagingConversations ?? 0)),
+          messagingFirstReply: BigInt(Math.round(d.messagingFirstReply ?? 0)),
+          messagingConnections: BigInt(Math.round(d.messagingConnections ?? 0)),
+          messagingOrders: BigInt(Math.round(d.messagingOrders ?? 0)),
+          leads: BigInt(Math.round(d.leads ?? 0)),
+          purchases: BigInt(Math.round(d.purchases ?? 0)),
+          purchaseValue: d.purchaseValue ?? 0,
+          postEngagement: BigInt(Math.round(d.postEngagement ?? 0)),
+          videoViews: BigInt(Math.round(d.videoViews ?? 0)),
         },
         update: {
           campaignName: d.campaignName,
@@ -235,6 +269,23 @@ export class FetchProcessor extends WorkerHost {
           conversions: d.conversions,
           conversionValue: d.conversionValue,
           currency: d.currency,
+          reach: BigInt(Math.round(d.reach ?? 0)),
+          frequency: d.frequency ?? 0,
+          cpm: d.cpm ?? 0,
+          cpc: d.cpc ?? 0,
+          cpp: d.cpp ?? 0,
+          ctr: d.ctr ?? 0,
+          inlineLinkClicks: BigInt(Math.round(d.inlineLinkClicks ?? 0)),
+          uniqueClicks: BigInt(Math.round(d.uniqueClicks ?? 0)),
+          messagingConversations: BigInt(Math.round(d.messagingConversations ?? 0)),
+          messagingFirstReply: BigInt(Math.round(d.messagingFirstReply ?? 0)),
+          messagingConnections: BigInt(Math.round(d.messagingConnections ?? 0)),
+          messagingOrders: BigInt(Math.round(d.messagingOrders ?? 0)),
+          leads: BigInt(Math.round(d.leads ?? 0)),
+          purchases: BigInt(Math.round(d.purchases ?? 0)),
+          purchaseValue: d.purchaseValue ?? 0,
+          postEngagement: BigInt(Math.round(d.postEngagement ?? 0)),
+          videoViews: BigInt(Math.round(d.videoViews ?? 0)),
         },
       });
       count += 1;

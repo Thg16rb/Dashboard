@@ -17,7 +17,7 @@ const NAV: Array<[string, string, string]> = [
 function readRole(): string {
   try {
     const t = localStorage.getItem('token');
-    if (!t || t === 'demo') return 'demo';
+    if (!t) return '';
     return JSON.parse(atob(t.split('.')[1])).role ?? '';
   } catch { return ''; }
 }
@@ -35,8 +35,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       return;
     }
     const role = readRole();
-    // Mostra "Master" para ADMIN_GERAL e também no modo demo (para visualização).
-    setIsMaster(role === 'ADMIN_GERAL' || role === 'demo');
+    setIsMaster(role === 'ADMIN_GERAL');
     setImpersonating(!!localStorage.getItem('masterToken'));
   }, [router, pathname]);
 

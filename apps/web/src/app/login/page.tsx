@@ -46,9 +46,8 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch {
-      // Só cai em sandbox quando o backend está inacessível (erro de rede).
-      localStorage.setItem('token', 'demo');
-      router.push('/dashboard');
+      // Backend inacessível (erro de rede) → erro real, nunca modo demo.
+      setError('> servidor indisponível, tente novamente');
     } finally {
       setLoading(false);
     }

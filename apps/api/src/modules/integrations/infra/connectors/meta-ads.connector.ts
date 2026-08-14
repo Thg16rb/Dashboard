@@ -40,6 +40,17 @@ interface CampaignInsightRow {
   date_start: string;
   actions?: Array<{ action_type: string; value: string }>;
   action_values?: Array<{ action_type: string; value: string }>;
+  reach?: string;
+  frequency?: string;
+  cpm?: string;
+  cpc?: string;
+  cpp?: string;
+  ctr?: string;
+  inline_link_clicks?: string;
+  inline_link_click_ctr?: string;
+  cost_per_inline_link_click?: string;
+  unique_clicks?: string;
+  unique_ctr?: string;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -68,6 +79,45 @@ function dedupPurchaseMetric(
       const v = parseFloat(row.value) || 0;
       if (v > max) max = v;
     }
+  }
+  return max;
+}
+
+/**
+ * Métricas de MENSAGENS (PRIORIDADE — pedido explícito do dono): conversas
+ * iniciadas, primeira resposta, conexões totais e pedidos via mensagem.
+ * Não há duplicidade conhecida nestes action_types (cada um é único no
+ * array `actions`), então lookup direto é suficiente.
+ */
+const MESSAGING_ACTION_TYPES = {
+  conversations: 'onsite_conversion.messaging_conversation_started_7d',
+  firstReply: 'onsite_conversion.messaging_first_reply',
+  connections: 'onsite_conversion.total_messaging_connection',
+  orders: 'onsite_conversion.messaging_order_created_v2',
+} as const;
+
+/** Leads: dedup — prioriza onsite_conversion.lead, senão 'lead' genérico, nunca soma os dois. */
+const LEAD_ACTION_TYPES = ['onsite_conversion.lead', 'lead'];
+
+function findActionValue(
+  rows: Array<{ action_type: string; value: string }> | undefined,
+  actionType: string,
+): number {
+  if (!rows) return 0;
+  const row = rows.find((r) => r.action_type === actionType);
+  return row ? parseFloat(row.value) || 0 : 0;
+}
+
+/** Dedup por MAIOR valor entre alternativas (nunca soma — evita duplicar contagem). */
+function dedupMaxMetric(
+  rows: Array<{ action_type: string; value: string }> | undefined,
+  types: string[],
+): number {
+  if (!rows || rows.length === 0) return 0;
+  let max = 0;
+  for (const type of types) {
+    const v = findActionValue(rows, type);
+    if (v > max) max = v;
   }
   return max;
 }
@@ -265,7 +315,9 @@ export class MetaAdsConnector implements IntegrationConnector {
           const rows = await this.graphGetPaginated<CampaignInsightRow>(
             `/${account.id}/insights`,
             {
-              fields: 'campaign_id,campaign_name,spend,impressions,clicks,actions,action_values',
+              fields:
+                'campaign_id,campaign_name,spend,impressions,clicks,actions,action_values,' +
+                'reach,frequency,cpm,cpc,cpp,ctr,inline_link_clicks,unique_clicks',
               level: 'campaign',
               time_increment: '1',
               time_range: JSON.stringify({
@@ -277,8 +329,26 @@ export class MetaAdsConnector implements IntegrationConnector {
           );
 
           for (const row of rows) {
+            // Compras: dedup pela chave canônica (omni_purchase prioritário, senão MAIOR
+            // valor entre alternativas — nunca soma, evita dobrar faturamento).
             const conversions = dedupPurchaseMetric(row.actions);
             const conversionValue = dedupPurchaseMetric(row.action_values);
+
+            // Mensagens (PRIORIDADE — pedido explícito do dono).
+            const messagingConversations = findActionValue(
+              row.actions,
+              MESSAGING_ACTION_TYPES.conversations,
+            );
+            const messagingFirstReply = findActionValue(row.actions, MESSAGING_ACTION_TYPES.firstReply);
+            const messagingConnections = findActionValue(row.actions, MESSAGING_ACTION_TYPES.connections);
+            const messagingOrders = findActionValue(row.actions, MESSAGING_ACTION_TYPES.orders);
+
+            const leads = dedupMaxMetric(row.actions, LEAD_ACTION_TYPES);
+            const purchases = conversions; // omni_purchase já é a contagem canônica de compras
+            const purchaseValue = conversionValue;
+            const postEngagement = findActionValue(row.actions, 'post_engagement');
+            const videoViews = findActionValue(row.actions, 'video_view');
+
             records.push({
               kind: 'ad_metric',
               externalId: `${account.id}:${row.campaign_id}:${row.date_start}`,
@@ -297,6 +367,23 @@ export class MetaAdsConnector implements IntegrationConnector {
                 clicks: parseInt(row.clicks ?? '0', 10) || 0,
                 conversions,
                 conversionValue,
+                reach: parseInt(row.reach ?? '0', 10) || 0,
+                frequency: parseFloat(row.frequency ?? '0') || 0,
+                cpm: parseFloat(row.cpm ?? '0') || 0,
+                cpc: parseFloat(row.cpc ?? '0') || 0,
+                cpp: parseFloat(row.cpp ?? '0') || 0,
+                ctr: parseFloat(row.ctr ?? '0') || 0,
+                inlineLinkClicks: parseInt(row.inline_link_clicks ?? '0', 10) || 0,
+                uniqueClicks: parseInt(row.unique_clicks ?? '0', 10) || 0,
+                messagingConversations,
+                messagingFirstReply,
+                messagingConnections,
+                messagingOrders,
+                leads,
+                purchases,
+                purchaseValue,
+                postEngagement,
+                videoViews,
               },
             });
           }

@@ -1,0 +1,9 @@
+FROM node:20-alpine
+RUN npm i -g pnpm
+WORKDIR /app
+COPY . .
+RUN pnpm --filter @dashboard/web install
+RUN pnpm --filter @dashboard/web build
+WORKDIR /app/apps/web
+EXPOSE 3000
+CMD ["pnpm","start"]

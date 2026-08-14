@@ -13,6 +13,16 @@ export interface KpiInput {
   conversoes: number;
   leads: number;
   novosClientes: number;
+  // Métricas Meta Ads adicionais (BLUEPRINT — mensagens é a prioridade do dono).
+  messagingConversations: number; // conversas iniciadas via anúncio
+  reach: number;
+  frequency: number;
+  metaCpm: number; // cpm reportado direto pela Graph API (média ponderada)
+  metaCpc: number;
+  metaCpp: number;
+  metaCtr: number;
+  metaLeads: number;
+  purchases: number;
 }
 
 export interface Kpis {
@@ -30,6 +40,17 @@ export interface Kpis {
   ticketMedio: number;
   margem: number;
   conversoes: number;
+  // Métricas Meta Ads adicionais.
+  mensagens: number; // conversas de mensagem iniciadas (messaging_conversations)
+  custoPorMensagem: number; // spend / mensagens — KPI principal pedido pelo dono
+  leadsMeta: number;
+  compras: number;
+  alcance: number;
+  frequencia: number;
+  metaCpm: number;
+  metaCpc: number;
+  metaCpp: number;
+  metaCtr: number;
 }
 
 const safeDiv = (a: number, b: number): number => (b === 0 ? 0 : a / b);
@@ -50,6 +71,16 @@ export function computeKpis(i: KpiInput): Kpis {
     ticketMedio: safeDiv(i.receitaBruta, i.conversoes),
     margem: safeDiv(i.lucroLiquido, i.receitaBruta),
     conversoes: i.conversoes,
+    mensagens: i.messagingConversations,
+    custoPorMensagem: safeDiv(i.investido, i.messagingConversations),
+    leadsMeta: i.metaLeads,
+    compras: i.purchases,
+    alcance: i.reach,
+    frequencia: i.frequency,
+    metaCpm: i.metaCpm,
+    metaCpc: i.metaCpc,
+    metaCpp: i.metaCpp,
+    metaCtr: i.metaCtr,
   };
 }
 

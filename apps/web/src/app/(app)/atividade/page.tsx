@@ -9,32 +9,22 @@ interface LogRow {
   statusCode: number; durationMs: number; summary?: string; createdAt: string;
 }
 
-const DEMO: LogRow[] = [
-  { id: '1', kind: 'webhook', method: 'POST', path: '/webhooks/stripe/…', statusCode: 200, durationMs: 42, summary: 'venda salva R$197', createdAt: new Date().toISOString() },
-  { id: '2', kind: 'http', method: 'GET', path: '/dashboard/kpis', statusCode: 200, durationMs: 18, createdAt: new Date(Date.now() - 4000).toISOString() },
-  { id: '3', kind: 'http', method: 'POST', path: '/auth/login', statusCode: 200, durationMs: 120, createdAt: new Date(Date.now() - 9000).toISOString() },
-  { id: '4', kind: 'webhook', method: 'POST', path: '/webhooks/hotmart/…', statusCode: 401, durationMs: 7, summary: 'HMAC inválido', createdAt: new Date(Date.now() - 15000).toISOString() },
-  { id: '5', kind: 'http', method: 'GET', path: '/dashboard/campaigns', statusCode: 200, durationMs: 31, createdAt: new Date(Date.now() - 22000).toISOString() },
-];
-
 export default function AtividadePage() {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [filter, setFilter] = useState<'all' | 'http' | 'webhook'>('all');
   const [live, setLive] = useState(true);
-  const [source, setSource] = useState<'api' | 'demo'>('demo');
+  const [loadError, setLoadError] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function load() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token) { setLoadError(true); setRows([]); return; }
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
     const kindQ = filter === 'all' ? '' : `?kind=${filter}`;
     fetch(`${API}/activity${kindQ}`, { headers })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => { setRows(data); setSource('api'); })
-      .catch(() => {
-        setSource('demo');
-        setRows(filter === 'all' ? DEMO : DEMO.filter((d) => d.kind === filter));
-      });
+      .then((data) => { setRows(data); setLoadError(false); })
+      .catch(() => { setLoadError(true); setRows([]); });
   }
 
   useEffect(() => {
@@ -75,7 +65,7 @@ export default function AtividadePage() {
         <button className={`livebtn ${live ? 'on' : ''}`} onClick={() => setLive((v) => !v)}>
           {live ? '● ao vivo' : '❚❚ pausado'}
         </button>
-        {source === 'demo' && <span className="demo">dados de demonstração</span>}
+        {loadError && <span className="demo">falha ao carregar atividade</span>}
       </div>
 
       <div className="doc-scroll">
